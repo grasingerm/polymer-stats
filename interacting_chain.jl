@@ -2,6 +2,7 @@ using ArgParse;
 using Distributions;
 using LinearAlgebra;
 using Logging;
+using DelimitedFiles;
 
 include("eap_chain.jl");
 
@@ -70,6 +71,10 @@ s = ArgParseSettings();
     help = "postfix for output files"
     arg_type = String
     default = ""
+  "--stepout", "-S"
+    help = "steps between storing microstates"
+    arg_type = Int
+    default = 500
 end
 
 pargs = parse_args(s);
@@ -106,9 +111,10 @@ function mcmc(nsteps::Int, pargs, callbacks)
   r2_sum = dot(chain.r, chain.r);
   chain_μ_sum = chain_μ(chain);
   Usum = chain.U;
-  for callback in callbacks
-    callback(chain, 0, true, false, pargs);
-  end
+  outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
+  #for callback in callbacks
+  #  callback(chain, 0, true, false, pargs);
+  #end
 
   start = time();
   last_update = start;
@@ -132,8 +138,14 @@ function mcmc(nsteps::Int, pargs, callbacks)
       last_update = time();
     end
 
-    for callback in callbacks
-      callback(chain, step, false, false, pargs);
+    #for callback in callbacks
+    #  callback(chain, step, false, false, pargs);
+    #end
+    if step % pargs["stepout"] == 0
+      writedlm(outfile, 
+               hcat(step, transpose(chain.r), 
+                    transpose(chain_μ(chain)), chain.U), 
+               ',');
     end
     end_to_end_sum += chain.r[:];
     r2_sum += dot(chain.r, chain.r);
@@ -145,15 +157,16 @@ function mcmc(nsteps::Int, pargs, callbacks)
   @info "total time elapsed: $(time() - start)";
   @info "acceptance rate: $(num_accepted / pargs["num-steps"])";
 
-  for callback in callbacks
-    callback(chain, pargs["num-steps"], false, true, pargs);
-  end
+  #for callback in callbacks
+  #  callback(chain, pargs["num-steps"], false, true, pargs);
+  #end
+  close(outfile);
 
   return (end_to_end_sum, r2_sum, chain_μ_sum, Usum);
 
 end
 
-@show data = mcmc(pargs["num-steps"], pargs, callbacks);
+data = mcmc(pargs["num-steps"], pargs, callbacks);
 
 println("<r>    =   $(data[1] / pargs["num-steps"])");
 println("<r/nb> =   $(data[1] / 

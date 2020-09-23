@@ -21,7 +21,10 @@ outpath(pargs) = "$(pargs["prefix"])_trajectory.csv";
   (chain::EAPChain, step::Int, startup::Bool, cleanup::Bool, pargs) -> begin;
     global outfile;
     if step % stepout == 0
-      writedlm(outfile, hcat(step, chain.r, chain_μ(chain), chain.U), ',');
+      writedlm(outfile, 
+               hcat(step, transpose(chain.r), 
+                    transpose(chain_μ(chain)), chain.U), 
+               ',');
     end
   end
 
