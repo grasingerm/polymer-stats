@@ -129,7 +129,7 @@ function mcmc(nsteps::Int, pargs, callbacks)
       chain.U = Ucurr;
       num_accepted += 1;
     else # reverse move
-      move!(chain, idx, -ds[1], -ds[2]);
+      @inbounds move!(chain, idx, -ds[1], -ds[2]);
     end
 
     if time() - last_update > pargs["update-freq"]
@@ -147,7 +147,7 @@ function mcmc(nsteps::Int, pargs, callbacks)
                     transpose(chain_μ(chain)), chain.U), 
                ',');
     end
-    end_to_end_sum += chain.r[:];
+    @inbounds end_to_end_sum += chain.r[:];
     r2_sum += dot(chain.r, chain.r);
     chain_μ_sum += chain_μ(chain);
     Usum += chain.U;

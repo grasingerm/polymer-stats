@@ -43,12 +43,12 @@ end
 
 function update_xs!(chain::EAPChain, idx::Int=1)
   if idx == 1
-    chain.xs[:, idx] = chain.b / 2 * n̂j(chain, idx);
+    @inbounds chain.xs[:, idx] = chain.b / 2 * n̂j(chain, idx);
     idx += 1;
   end
   for i=idx:n(chain)
-    chain.xs[:, i] = (chain.xs[:, i-1] + 
-                      chain.b / 2 * (n̂j(chain, i) + n̂j(chain, i-1))); 
+    @inbounds chain.xs[:, i] = (chain.xs[:, i-1] + 
+                                chain.b / 2 * (n̂j(chain, i) + n̂j(chain, i-1))); 
   end
 end
 
@@ -78,9 +78,9 @@ function EAPChain(pargs::Dict)
                   zeros(3),
                   0.0
                  );
-  for i=1:n(ret)
-    ret.μs[:, i] = μ(ret.E0, ret.K1, ret.K2, 
-                     ret.cϕs[i], ret.sϕs[i], ret.cθs[i], ret.sθs[i]);
+  @simd for i=1:n(ret)
+    @inbounds ret.μs[:, i] = μ(ret.E0, ret.K1, ret.K2, 
+                               ret.cϕs[i], ret.sϕs[i], ret.cθs[i], ret.sθs[i]);
   end
   ret.us[:] = map(i -> u(ret.E0, view(ret.μs, :, i)), 1:n(ret));
   update_xs!(ret);
@@ -93,55 +93,63 @@ end
 # this is probably by far the slowest calculation *shrug emoji*
 function U_interaction(chain::EAPChain)
   U = 0.0;
-  for i=1:n(chain), j=i+1:n(chain) # once debugged, use inbounds
-    r = chain.xs[:, i] - chain.xs[:, j];
-    r2 = dot(r, r);
-    rmag = sqrt(r2);
-    r̂ = r / rmag;
-    r3 = r2*rmag;
-    μi = view(chain.μs, :, i);
-    μj = view(chain.μs, :, i);
-    U += (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π);
+  @inbounds for i=1:n(chain)
+    @simd for j=i+1:n(chain) # once debugged, use inbounds
+      r = chain.xs[:, i] - chain.xs[:, j];
+      r2 = dot(r, r);
+      rmag = sqrt(r2);
+      r̂ = r / rmag;
+      r3 = r2*rmag;
+      μi = view(chain.μs, :, i);
+      μj = view(chain.μs, :, i);
+      U += (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π);
+    end
   end
   return U;
 end
 
 function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
-  ϕprev = chain.ϕs[idx];
-  chain.ϕs[idx] += dϕ;
-  if chain.ϕs[idx] < 0
-    chain.ϕs[idx] += 2*π;
-  elseif chain.ϕs[idx] >= 2*π
-    chain.ϕs[idx] -= 2*π;
-  end
-  chain.cϕs[idx] = cos(chain.ϕs[idx]);
-  chain.sϕs[idx] = sin(chain.ϕs[idx]);
+  @inbounds begin
+    ϕprev = chain.ϕs[idx];
+    chain.ϕs[idx] += dϕ;
+    if chain.ϕs[idx] < 0
+      chain.ϕs[idx] += 2*π;
+    elseif chain.ϕs[idx] >= 2*π
+      chain.ϕs[idx] -= 2*π;
+    end
+    chain.cϕs[idx] = cos(chain.ϕs[idx]);
+    chain.sϕs[idx] = sin(chain.ϕs[idx]);
 
-  θprev = chain.θs[idx]; 
-  chain.θs[idx] += dθ;
-  if chain.θs[idx] < 0
-    chain.θs[idx] = 0;
-  elseif chain.θs[idx] >= π
-    chain.θs[idx] = π;
-  end
-  chain.cθs[idx] = cos(chain.θs[idx]);
-  chain.sθs[idx] = sin(chain.θs[idx]);
+    θprev = chain.θs[idx]; 
+    chain.θs[idx] += dθ;
+    if chain.θs[idx] < 0
+      chain.θs[idx] = 0;
+    elseif chain.θs[idx] >= π
+      chain.θs[idx] = π;
+    end
+    chain.cθs[idx] = cos(chain.θs[idx]);
+    chain.sθs[idx] = sin(chain.θs[idx]);
 
-  chain.μs[:, idx] = μ(chain.E0, chain.K1, chain.K2,
-                       chain.cϕs[idx], chain.sϕs[idx], 
-                       chain.cθs[idx], chain.sθs[idx]);
-  chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
-  update_xs!(chain, idx);
-  chain.r[:] = end_to_end(chain);
+    chain.μs[:, idx] = μ(chain.E0, chain.K1, chain.K2,
+                         chain.cϕs[idx], chain.sϕs[idx], 
+                         chain.cθs[idx], chain.sθs[idx]);
+    chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
+    update_xs!(chain, idx);
+    chain.r[:] = end_to_end(chain);
+  end
   return (chain.ϕs[idx] - ϕprev, chain.θs[idx] - θprev);
 end
 
-@inline end_to_end(chain::EAPChain) = (chain.xs[:, end] + 
-                                       chain.b/2*n̂j(chain, n(chain)));
+@inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
+                                                 chain.b/2*n̂j(chain, n(chain)));
 
 @inline function U(chain::EAPChain)
   return (sum(chain.us) + U_interaction(chain)
           - dot(end_to_end(chain), [chain.Fx; 0.0; chain.Fz]));
 end
 
-@inline chain_μ(chain::EAPChain) = sum(map(i -> chain.μs[:, i], 1:n(chain)));
+@inline function chain_μ(chain::EAPChain)
+  @inbounds begin;
+    sum(map(i -> chain.μs[:, i], 1:n(chain)));
+  end
+end
