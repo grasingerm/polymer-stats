@@ -5,7 +5,7 @@ using Logging;
 using DelimitedFiles;
 
 include("eap_chain.jl");
-include("interacting_energy.jl");
+include("ni_energy.jl");
 
 s = ArgParseSettings();
 @add_arg_table! s begin

@@ -143,11 +143,6 @@ end
 @inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
                                                  chain.b/2*n̂j(chain, n(chain)));
 
-@inline function U(chain::EAPChain)
-  return (sum(chain.us) + U_interaction(chain)
-          - dot(end_to_end(chain), [chain.Fx; 0.0; chain.Fz]));
-end
-
 @inline function chain_μ(chain::EAPChain)
   @inbounds begin;
     sum(map(i -> chain.μs[:, i], 1:n(chain)));
