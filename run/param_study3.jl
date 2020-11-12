@@ -15,12 +15,12 @@ end
 end
 
 cases = Any[];
-E0s = [10.0; 1.0; 0.1;];
-Ks = zip([1.0; 0.0; 0.5; 1.0], [0.0; 1.0; 1.0; 0.5])
-kTs = [100.0; 1.0; 1e-3];
-Fzs = [0.0; 1e-3; 1.0; 10.0];
-Fxs = [0.0; 1e-3; 1.0; 10.0];
-ns = Int[100; 1000];
+E0s = [20.0; 10.0; 5.0; 2.5];
+Ks = zip([1.0; 0.0], [0.0; 1.0])
+kTs = [1.0;];
+Fzs = [0.0; 0.025; 0.05; 0.075; 0.1; 0.5; 1.0; 2.5; 5.0; 10.0; 20.0]; 
+Fxs = [0.0; 0.025; 0.05; 0.075; 0.1; 0.5; 1.0; 2.5; 5.0; 10.0; 20.0];
+ns = Int[100];
 bs = [1.0;];
 for b in bs, n in ns, Fx in Fxs, Fz in Fzs, kT in kTs, Kpair in Ks, 
     E0 in E0s
@@ -35,7 +35,7 @@ pmap(case -> begin;
   outfile = joinpath(workdir, "$(prefix(case)).out");
   if !isfile(outfile)
     println("Running case: $case.");
-    command = `julia -O 3 ni_chain.jl -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1000000 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
+    command = `julia -O 3 ni_chain.jl -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 50000 --num-inits 20 --force-init --step-adjust-scale 1.1 --step-adjust-ub 0.39 --step-adjust-lb 0.19 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
     output = read(command, String);
     write(outfile, output); 
   else

@@ -23,11 +23,7 @@ docs/site/
 # environment.
 Manifest.toml
 
-data/
-data/*
-data2/
-data2/*
-data3/
-data3/*
-data4/
-data4/*
+data*/
+data*/*
+figs/
+figs/*
