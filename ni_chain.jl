@@ -71,7 +71,7 @@ s = ArgParseSettings();
   "--step-adjust-scale", "-A"
     help = "scale factor for adjusting step sizes (> 1.0)"
     arg_type = Float64
-    default = 1.0
+    default = 1.1
   "--steps-per-adjust", "-S"
     help = "steps between storing microstates"
     arg_type = Int
@@ -210,10 +210,6 @@ function mcmc(nsteps::Int, pargs, callbacks)
        )
       chain = new_chain;
     end
-    end_to_end_sum = chain.r[:];
-    r2_sum = dot(chain.r, chain.r);
-    chain_μ_sum = chain_μ(chain);
-    Usum = chain.U;
 
   end
   
@@ -231,12 +227,13 @@ function mcmc(nsteps::Int, pargs, callbacks)
 end
 
 data = mcmc(pargs["num-steps"], pargs, callbacks);
+total_steps = pargs["num-steps"] * pargs["num-inits"];
 
-println("<r>    =   $(data[1] / pargs["num-steps"])");
+println("<r>    =   $(data[1] / total_steps)");
 println("<r/nb> =   $(data[1] / 
-                      (pargs["num-steps"]*pargs["mlen"]*pargs["num-monomers"])
+                      (total_steps*pargs["mlen"]*pargs["num-monomers"])
                      )");
-println("<r2>   =   $(data[2] / pargs["num-steps"])");
-println("<p>    =   $(data[3] / pargs["num-steps"])");
-println("<U>    =   $(data[4] / pargs["num-steps"])");
+println("<r2>   =   $(data[2] / total_steps)");
+println("<p>    =   $(data[3] / total_steps)");
+println("<U>    =   $(data[4] / total_steps)");
 println("AR     =   $(data[5])");
