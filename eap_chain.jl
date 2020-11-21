@@ -112,21 +112,21 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
   @inbounds begin
     ϕprev = chain.ϕs[idx];
     chain.ϕs[idx] += dϕ;
-    if chain.ϕs[idx] < 0
+    #=if chain.ϕs[idx] < 0
       chain.ϕs[idx] += 2*π;
     elseif chain.ϕs[idx] >= 2*π
       chain.ϕs[idx] -= 2*π;
-    end
+    end=#
     chain.cϕs[idx] = cos(chain.ϕs[idx]);
     chain.sϕs[idx] = sin(chain.ϕs[idx]);
 
     θprev = chain.θs[idx]; 
     chain.θs[idx] += dθ;
-    if chain.θs[idx] < 0
-      chain.θs[idx] = 0;
-    elseif chain.θs[idx] >= π
-      chain.θs[idx] = π;
-    end
+    #=if chain.θs[idx] < 0
+      chain.θs[idx] *= -1;
+    elseif chain.θs[idx] > π
+      chain.θs[idx] -= π;
+    end=#
     chain.cθs[idx] = cos(chain.θs[idx]);
     chain.sθs[idx] = sin(chain.θs[idx]);
 
