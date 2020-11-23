@@ -137,11 +137,11 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     update_xs!(chain, idx);
     chain.r[:] = end_to_end(chain);
   end
-  return (chain.ϕs[idx] - ϕprev, chain.θs[idx] - θprev);
+  return (dϕ, dθ);
 end
 
 @inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
-                                                 chain.b/2*n̂j(chain, n(chain)));
+                                                 chain.b/2.0*n̂j(chain, n(chain)));
 
 @inline function chain_μ(chain::EAPChain)
   @inbounds begin;

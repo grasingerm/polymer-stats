@@ -73,7 +73,7 @@ s = ArgParseSettings();
     arg_type = Float64
     default = 1.1
   "--steps-per-adjust", "-S"
-    help = "steps between storing microstates"
+    help = "steps between step size adjustments"
     arg_type = Int
     default = 2500
   "--update-freq", "-u"
@@ -132,10 +132,10 @@ function mcmc(nsteps::Int, pargs, callbacks)
   dθ_dist = Uniform(-θstep, θstep);
   chain = EAPChain(pargs);
   chain.U = U(chain);
-  end_to_end_sum = chain.r[:];
-  r2_sum = dot(chain.r, chain.r);
-  chain_μ_sum = chain_μ(chain);
-  Usum = chain.U;
+  end_to_end_sum = zeros(length(chain.r));
+  r2_sum = 0.0;
+  chain_μ_sum = zeros(length(chain.μs));
+  Usum = 0.0;
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
   #for callback in callbacks
   #  callback(chain, 0, true, false, pargs);
@@ -150,13 +150,18 @@ function mcmc(nsteps::Int, pargs, callbacks)
       dϕ = rand(dϕ_dist);
       dθ = rand(dθ_dist);
       idx = rand(1:n(chain));
-      ds = move!(chain, idx, dϕ, dθ);
+      if rand(Bool) # flip a coin to decide between ϕ and θ
+        dϕ, dθ = move!(chain, idx, 0, dθ);
+      else
+        dϕ, dθ = move!(chain, idx, dϕ, 0);
+      end
       Ucurr = U(chain);
       if metropolis_acc(chain.kT, Ucurr - chain.U, rand())
         chain.U = Ucurr;
         num_accepted += 1;
       else # reverse move
-        @inbounds move!(chain, idx, -ds[1], -ds[2]);
+        @inbounds move!(chain, idx, -dϕ, -dθ);
+        @assert(Ucurr == U(chain));
       end
 
       if time() - last_update > pargs["update-freq"]
@@ -169,7 +174,7 @@ function mcmc(nsteps::Int, pargs, callbacks)
       if (
           pargs["step-adjust-scale"] != 1.0 &&
           step % pargs["steps-per-adjust"] == 0
-         )
+         ) # adjust step size?
         acc_ratio = num_accepted / (step + (init - 1)*nsteps);
         if (acc_ratio > pargs["step-adjust-ub"] &&
             ϕstep != π && θstep != π/2)
@@ -194,12 +199,12 @@ function mcmc(nsteps::Int, pargs, callbacks)
                       transpose(chain_μ(chain)), chain.U), 
                  ',');
       end
-      @inbounds end_to_end_sum += chain.r[:];
+      @inbounds end_to_end_sum[:] += chain.r;
       r2_sum += dot(chain.r, chain.r);
-      chain_μ_sum += chain_μ(chain);
+      chain_μ_sum[:] += chain_μ(chain);
       Usum += chain.U;
     
-    end
+    end # steps
 
     # reinitialize polymer chain
     new_chain = EAPChain(pargs);
