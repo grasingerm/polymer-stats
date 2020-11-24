@@ -89,6 +89,29 @@ function EAPChain(pargs::Dict)
   return ret;
 end
 
+function EAPChain(chain::EAPChain)
+  return EAPChain(
+                  chain.b,
+                  chain.E0,
+                  chain.K1,
+                  chain.K2,
+                  chain.kT,
+                  chain.Fz,
+                  chain.Fx,
+                  chain.ϕs[:],
+                  chain.cϕs[:],
+                  chain.sϕs[:],
+                  chain.θs[:],
+                  chain.cθs[:],
+                  chain.sθs[:],
+                  chain.μs[:, :],
+                  chain.us[:],
+                  chain.xs[:, :],
+                  chain.r[:],
+                  chain.U
+                 );
+end
+
 # TODO: consider rewriting this to make better use of past calculations
 # this is probably by far the slowest calculation *shrug emoji*
 function U_interaction(chain::EAPChain)
@@ -110,23 +133,11 @@ end
 
 function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
   @inbounds begin
-    ϕprev = chain.ϕs[idx];
     chain.ϕs[idx] += dϕ;
-    #=if chain.ϕs[idx] < 0
-      chain.ϕs[idx] += 2*π;
-    elseif chain.ϕs[idx] >= 2*π
-      chain.ϕs[idx] -= 2*π;
-    end=#
     chain.cϕs[idx] = cos(chain.ϕs[idx]);
     chain.sϕs[idx] = sin(chain.ϕs[idx]);
 
-    θprev = chain.θs[idx]; 
     chain.θs[idx] += dθ;
-    #=if chain.θs[idx] < 0
-      chain.θs[idx] *= -1;
-    elseif chain.θs[idx] > π
-      chain.θs[idx] -= π;
-    end=#
     chain.cθs[idx] = cos(chain.θs[idx]);
     chain.sθs[idx] = sin(chain.θs[idx]);
 

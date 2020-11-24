@@ -113,8 +113,15 @@ else
   global_logger(Logging.NullLogger());
 end
 
-metropolis_acc(kT::Real, dU::Real, ϵ::Real) = ( (dU <= 0) ? true : 
-                                               ( ϵ <= exp(-dU / kT) ) );
+@inline function metropolis_acc(kT::Real, dU::Real, sθa::Real, sθb::Real, ϵ::Real)
+  return ϵ <= (exp(-dU / kT) * sθb / sθa);
+end
+  
+function kawasaki_acc(kT::Real, dU::Real, ϵ::Real)
+  boltz = exp(-dU / (2*kT));
+  anti_boltz = exp(dU / (2*kT));
+  return ( ϵ <= (boltz / (boltz + anti_boltz)) );
+end
 
 callbacks = Any[];
 try
@@ -134,7 +141,7 @@ function mcmc(nsteps::Int, pargs, callbacks)
   chain.U = U(chain);
   end_to_end_sum = zeros(length(chain.r));
   r2_sum = 0.0;
-  chain_μ_sum = zeros(length(chain.μs));
+  chain_μ_sum = zeros(length(chain_μ(chain)));
   Usum = 0.0;
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
   #for callback in callbacks
@@ -150,18 +157,15 @@ function mcmc(nsteps::Int, pargs, callbacks)
       dϕ = rand(dϕ_dist);
       dθ = rand(dθ_dist);
       idx = rand(1:n(chain));
-      if rand(Bool) # flip a coin to decide between ϕ and θ
-        dϕ, dθ = move!(chain, idx, 0, dθ);
-      else
-        dϕ, dθ = move!(chain, idx, dϕ, 0);
-      end
-      Ucurr = U(chain);
-      if metropolis_acc(chain.kT, Ucurr - chain.U, rand())
-        chain.U = Ucurr;
+      sθa = chain.sθs[idx];
+      trial_chain = EAPChain(chain);
+      dϕ, dθ = move!(trial_chain, idx, dϕ, dθ);
+      Utrial = U(trial_chain);
+      if metropolis_acc(chain.kT, Utrial - chain.U, sθa, trial_chain.sθs[idx], 
+                        rand())
+        chain = trial_chain;
+        chain.U = Utrial;
         num_accepted += 1;
-      else # reverse move
-        @inbounds move!(chain, idx, -dϕ, -dθ);
-        @assert(Ucurr == U(chain));
       end
 
       if time() - last_update > pargs["update-freq"]
@@ -199,9 +203,9 @@ function mcmc(nsteps::Int, pargs, callbacks)
                       transpose(chain_μ(chain)), chain.U), 
                  ',');
       end
-      @inbounds end_to_end_sum[:] += chain.r;
+      @inbounds end_to_end_sum[:] += chain.r[:];
       r2_sum += dot(chain.r, chain.r);
-      chain_μ_sum[:] += chain_μ(chain);
+      @inbounds chain_μ_sum[:] += chain_μ(chain);
       Usum += chain.U;
     
     end # steps
@@ -211,7 +215,8 @@ function mcmc(nsteps::Int, pargs, callbacks)
     new_chain.U = U(new_chain);
     if (
         pargs["force-init"] || 
-        metropolis_acc(chain.kT, new_chain.U - chain.U, rand())
+        metropolis_acc(chain.kT, new_chain.U - chain.U, 
+                       prod(chain.sθs), prod(new_chain.sθs), rand())
        )
       chain = new_chain;
     end
