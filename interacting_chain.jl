@@ -140,9 +140,13 @@ function mcmc(nsteps::Int, pargs, callbacks)
   chain = EAPChain(pargs);
   chain.U = U(chain);
   end_to_end_sum = zeros(length(chain.r));
+  rj2_sum = zeros(length(chain.r));
   r2_sum = 0.0;
   chain_μ_sum = zeros(length(chain_μ(chain)));
+  μj2_sum = zeros(length(chain_μ_sum));
+  μ2_sum = 0.0;
   Usum = 0.0;
+  U2sum = 0.0;
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
   #for callback in callbacks
   #  callback(chain, 0, true, false, pargs);
@@ -204,9 +208,12 @@ function mcmc(nsteps::Int, pargs, callbacks)
                  ',');
       end
       @inbounds end_to_end_sum[:] += chain.r[:];
+      @inbounds rj2_sum[:] += map(x -> x*x, chain.r);
       r2_sum += dot(chain.r, chain.r);
       @inbounds chain_μ_sum[:] += chain_μ(chain);
+      @inbounds μj2_sum[:] += map(x -> x*x, chain_μ(chain));
       Usum += chain.U;
+      U2sum += chain.U*chain.U;
     
     end # steps
 
@@ -232,7 +239,8 @@ function mcmc(nsteps::Int, pargs, callbacks)
   #end
   close(outfile);
 
-  return (end_to_end_sum, r2_sum, chain_μ_sum, Usum, ar);
+  return (end_to_end_sum, rj2_sum, r2_sum, chain_μ_sum, μj2_sum, μ2_sum, 
+          Usum, U2sum, ar);
 
 end
 
@@ -243,7 +251,11 @@ println("<r>    =   $(data[1] / total_steps)");
 println("<r/nb> =   $(data[1] / 
                       (total_steps*pargs["mlen"]*pargs["num-monomers"])
                      )");
-println("<r2>   =   $(data[2] / total_steps)");
-println("<p>    =   $(data[3] / total_steps)");
-println("<U>    =   $(data[4] / total_steps)");
-println("AR     =   $(data[5])");
+println("<rj2>  =   $(data[2] / total_steps)");
+println("<r2>   =   $(data[3] / total_steps)");
+println("<p>    =   $(data[4] / total_steps)");
+println("<pj2>  =   $(data[5] / total_steps)");
+println("<p2>   =   $(data[6] / total_steps)");
+println("<U>    =   $(data[7] / total_steps)");
+println("<U2>   =   $(data[8] / total_steps)");
+println("AR     =   $(data[9])");
