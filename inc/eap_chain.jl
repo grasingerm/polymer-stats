@@ -1,18 +1,18 @@
 using Distributions;
 
-CnMatrix = AbstractMatrix{Int};
-FdMatrix = AbstractMatrix{Float64};
-CnVector = AbstractVector{Int};
-FdVector = AbstractVector{Float64};
+include(joinpath(@__DIR__, "dipole_response.jl"));
 
 ϕ_dist = Uniform(0.0, 2*π);
 θ_dist = Uniform(0.0, π);
 
+# the way that the energy functions are organized is a mess; I'm sorry
+abstract type Energy end
+
 mutable struct EAPChain
   b::Real;
   E0::Real;
-  K1::Real;
-  K2::Real;
+  μ::DipoleResponse;
+  UFunction::Energy;
   kT::Real;
   Fz::Real;
   Fx::Real;
@@ -32,11 +32,6 @@ end
 @inline n(chain::EAPChain) = length(chain.ϕs);
 
 @inline n̂(cϕ, sϕ, cθ, sθ) = [cϕ * sθ; sϕ * sθ; cθ];
-
-function μ(E0::Real, K1::Real, K2::Real, cϕ::Real, sϕ::Real, cθ::Real, sθ::Real)
-  n̂i = n̂(cϕ, sϕ, cθ, sθ);
-  return ((K1 - K2) * E0 * cθ * n̂i) + (K2 * [0.0; 0.0; E0]);
-end
 
 @inline n̂j(chain::EAPChain, idx::Int) = n̂(chain.cϕs[idx], chain.sϕs[idx],
                                           chain.cθs[idx], chain.sθs[idx]);
@@ -58,11 +53,25 @@ function EAPChain(pargs::Dict)
   ϕs = rand(ϕ_dist, pargs["num-monomers"]);
   θs = rand(θ_dist, pargs["num-monomers"]);
 
+  dr = if pargs["chain-type"] == "dielectric"
+    DielectricResponse(pargs["K1"], pargs["K2"]);
+  elseif pargs["chain-type"] == "polar"
+    PolarResponse(pargs["mu"] * [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]);
+  else
+    error("chain-type is not understood.");
+  end
+
   ret =  EAPChain(
                   pargs["mlen"],
                   pargs["E0"],
-                  pargs["K1"],
-                  pargs["K2"],
+                  dr,
+                  if pargs["energy-type"] == "noninteracting"
+                    NonInteractingEnergy();
+                  elseif pargs["energy-type"] == "interacting"
+                    InteractingEnergy();
+                  else
+                    error("energy-type is not understood.");
+                  end,
                   pargs["kT"],
                   pargs["Fz"],
                   pargs["Fx"],
@@ -79,8 +88,8 @@ function EAPChain(pargs::Dict)
                   0.0
                  );
   @simd for i=1:n(ret)
-    @inbounds ret.μs[:, i] = μ(ret.E0, ret.K1, ret.K2, 
-                               ret.cϕs[i], ret.sϕs[i], ret.cθs[i], ret.sθs[i]);
+    @inbounds ret.μs[:, i] = dr(ret.E0, ret.cϕs[i], ret.sϕs[i], 
+                                ret.cθs[i], ret.sθs[i]);
   end
   ret.us[:] = map(i -> u(ret.E0, view(ret.μs, :, i)), 1:n(ret));
   update_xs!(ret);
@@ -93,8 +102,8 @@ function EAPChain(chain::EAPChain)
   return EAPChain(
                   chain.b,
                   chain.E0,
-                  chain.K1,
-                  chain.K2,
+                  chain.μ,
+                  chain.UFunction,
                   chain.kT,
                   chain.Fz,
                   chain.Fx,
@@ -141,9 +150,8 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.cθs[idx] = cos(chain.θs[idx]);
     chain.sθs[idx] = sin(chain.θs[idx]);
 
-    chain.μs[:, idx] = μ(chain.E0, chain.K1, chain.K2,
-                         chain.cϕs[idx], chain.sϕs[idx], 
-                         chain.cθs[idx], chain.sθs[idx]);
+    chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx], 
+                               chain.cθs[idx], chain.sθs[idx]);
     chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
     update_xs!(chain, idx);
     chain.r[:] = end_to_end(chain);
@@ -159,3 +167,6 @@ end
     sum(map(i -> chain.μs[:, i], 1:n(chain)));
   end
 end
+
+include(joinpath(@__DIR__, "energy.jl"));
+@inline U(chain::EAPChain) = chain.UFunction(chain); # forward energy call to chain

@@ -4,39 +4,54 @@ using LinearAlgebra;
 using Logging;
 using DelimitedFiles;
 
-include("eap_chain.jl");
-include("ni_energy.jl");
+include(joinpath("inc", "eap_chain.jl"));
 
 s = ArgParseSettings();
 @add_arg_table! s begin
-  "--mlen", "-b"
-    help = "monomer length"
-    arg_type = Float64
-    default = 1.0
   "--E0", "-z"
     help = "magnitude of electric field"
     arg_type = Float64
     default = 0.0
+  "--chain-type", "-T"
+    help = "chain type (dielectric|polar)"
+    arg_type = String
+    default = "dielectric"
   "--K1", "-J"
-    help = "dipole susceptibility along the monomer axis"
+    help = "dipole susceptibility along the monomer axis (dielectric chain)"
     arg_type = Float64
     default = 1.0
   "--K2", "-K"
-    help = "dipole susceptibility orthogonal to the monomer axis"
+    help = "dipole susceptibility orthogonal to the monomer axis (dielectric chain)"
     arg_type = Float64
     default = 0.0
+  "--mu", "-m"
+    arg_type = Float64
+    default = 1e-2
+    help = "dipole magnitude (electret chain)"
+  "--energy-type", "-e"
+    help = "energy type (noninteracting|interacting)"
+    arg_type = String
+    default = "noninteracting"
   "--kT", "-k"
     help = "dimensionless temperature"
     arg_type = Float64
     default = 1.0
+  "--ensemble-type", "-E"
+    help = "ensemble type (force|end-to-end)"
+    arg_type = String
+    default = "force"
   "--Fz", "-F"
-    help = "force in the z-direction (direction of E-field)"
+    help = "force in the z-direction (direction of E-field; force ensemble)"
     arg_type = Float64
     default = 0.0
   "--Fx", "-G"
-    help = "force in the x-direction"
+    help = "force in the x-direction (force ensemble)"
     arg_type = Float64
     default = 0.0
+  "--mlen", "-b"
+    help = "monomer length"
+    arg_type = Float64
+    default = 1.0
   "--num-monomers", "-n"
     help = "number of monomers"
     arg_type = Int
@@ -60,6 +75,10 @@ s = ArgParseSettings();
     help = "maximum θ step length"
     arg_type = Float64;
     default = 3*π / 16;
+  "--chain-frac-step", "-f"
+    help = "fraction of monomers to step (end-to-end ensemble)"
+    arg_type = Float64
+    default = 0.10
   "--step-adjust-lb", "-L"
     help = "adjust step sizes if acc. ratio below this threshold"
     arg_type = Float64
@@ -76,6 +95,10 @@ s = ArgParseSettings();
     help = "steps between step size adjustments"
     arg_type = Int
     default = 2500
+  "--acc", "-x"
+    help = "acceptance function (metropolis|kawasaki)"
+    arg_type = String
+    default = "metropolis"
   "--update-freq", "-u"
     help = "update frequency (seconds)"
     arg_type = Float64;

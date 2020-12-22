@@ -93,9 +93,9 @@ open(outfile, "w") do w
   for x in xs
     println("x = $x");
     if verbose
-      command = `julia exact_kuhn_grun_ecoord.jl -A $algo --E0 $E0 --dk $dk --kT $kT -N $N --reltol-int $reltol --maxevals-int $maxevals --reltol-opt $reltol_opt --abstol-opt $abstol_opt --maxevals-opt $maxevals_opt --gz $(x*st) --gx $(x*ct) --verbose`;
+      command = `julia mean_field.jl -A $algo --E0 $E0 --dk $dk --kT $kT -N $N --reltol-int $reltol --maxevals-int $maxevals --reltol-opt $reltol_opt --abstol-opt $abstol_opt --maxevals-opt $maxevals_opt --gz $(x*st) --gx $(x*ct) --verbose`;
     else
-      command = `julia exact_kuhn_grun_ecoord.jl -A $algo --E0 $E0 --dk $dk --kT $kT -N $N --reltol-int $reltol --maxevals-int $maxevals --reltol-opt $reltol_opt --abstol-opt $abstol_opt --maxevals-opt $maxevals_opt --gz $(x*st) --gx $(x*ct)`;
+      command = `julia mean_field.jl -A $algo --E0 $E0 --dk $dk --kT $kT -N $N --reltol-int $reltol --maxevals-int $maxevals --reltol-opt $reltol_opt --abstol-opt $abstol_opt --maxevals-opt $maxevals_opt --gz $(x*st) --gx $(x*ct)`;
     end
 
     process_output = readlines(command);
