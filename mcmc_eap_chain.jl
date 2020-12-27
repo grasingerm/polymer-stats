@@ -5,6 +5,8 @@ using Logging;
 using DelimitedFiles;
 
 include(joinpath("inc", "eap_chain.jl"));
+include(joinpath("inc", "average.jl"));
+include(joinpath("inc", "acceptance.jl"));
 
 s = ArgParseSettings();
 @add_arg_table! s begin
@@ -99,6 +101,9 @@ s = ArgParseSettings();
     help = "acceptance function (metropolis|kawasaki)"
     arg_type = String
     default = "metropolis"
+  "--umbrella-sampling", "-B"
+    help = "use umbrella sampling (w/ electrostatic weight function)"
+    action = :store_true
   "--update-freq", "-u"
     help = "update frequency (seconds)"
     arg_type = Float64;
@@ -136,16 +141,6 @@ else
   global_logger(Logging.NullLogger());
 end
 
-@inline function metropolis_acc(kT::Real, dU::Real, sθa::Real, sθb::Real, ϵ::Real)
-  return ϵ <= (exp(-dU / kT) * sθb / sθa);
-end
-  
-function kawasaki_acc(kT::Real, dU::Real, ϵ::Real)
-  boltz = exp(-dU / (2*kT));
-  anti_boltz = exp(dU / (2*kT));
-  return ( ϵ <= (boltz / (boltz + anti_boltz)) );
-end
-
 callbacks = Any[];
 try
   callbacks = if pargs["callbacks"] !== nothing
@@ -162,18 +157,35 @@ function mcmc(nsteps::Int, pargs, callbacks)
   dθ_dist = Uniform(-θstep, θstep);
   chain = EAPChain(pargs);
   chain.U = U(chain);
-  end_to_end_sum = zeros(length(chain.r));
-  rj2_sum = zeros(length(chain.r));
-  r2_sum = 0.0;
-  chain_μ_sum = zeros(length(chain_μ(chain)));
-  μj2_sum = zeros(length(chain_μ_sum));
-  μ2_sum = 0.0;
-  Usum = 0.0;
-  U2sum = 0.0;
+  acceptor = if pargs["acc"] == "metropolis"
+    Metropolis(
+               chain, 
+               (pargs["umbrella-sampling"]) ? weight_anti_dipole : chain -> 1.0
+              );
+  else
+    error("'$(pargs["acc"])' acceptance criteria has not yet been implemented.");
+  end
+  Avg, avgcons = if pargs["umbrella-sampling"]
+    UmbrellaAverager, (acc, chain) -> UmbrellaAverager(acc, weight_anti_dipole, 
+                                                       chain);
+  else
+    StandardAverager, StandardAverager
+  end
+  scalar_averagers = (Avg[
+                       avgcons(chain -> dot(end_to_end(chain), 
+                                            end_to_end(chain)), chain),
+                       avgcons(chain -> dot(chain_μ(chain), chain_μ(chain)), 
+                                        chain),
+                       avgcons(chain -> chain.U, chain),
+                       avgcons(chain -> chain.U*chain.U, chain),
+                      ]);
+  vector_averagers = (Avg{Vector{Float64}}[
+                       avgcons(end_to_end, chain),
+                       avgcons(chain -> map(x -> x*x, end_to_end(chain)), chain),
+                       avgcons(chain_μ, chain),
+                       avgcons(chain -> map(x -> x*x, chain_μ(chain)), chain)
+                      ]);
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
-  #for callback in callbacks
-  #  callback(chain, 0, true, false, pargs);
-  #end
 
   start = time();
   last_update = start;
@@ -184,14 +196,10 @@ function mcmc(nsteps::Int, pargs, callbacks)
       dϕ = rand(dϕ_dist);
       dθ = rand(dθ_dist);
       idx = rand(1:n(chain));
-      sθa = chain.sθs[idx];
       trial_chain = EAPChain(chain);
-      dϕ, dθ = move!(trial_chain, idx, dϕ, dθ);
-      Utrial = U(trial_chain);
-      if metropolis_acc(chain.kT, Utrial - chain.U, sθa, trial_chain.sθs[idx], 
-                        rand())
+      move!(trial_chain, idx, dϕ, dθ);
+      if acceptor(trial_chain, rand())
         chain = trial_chain;
-        chain.U = Utrial;
         num_accepted += 1;
       end
 
@@ -230,13 +238,8 @@ function mcmc(nsteps::Int, pargs, callbacks)
                       transpose(chain_μ(chain)), chain.U), 
                  ',');
       end
-      @inbounds end_to_end_sum[:] += chain.r[:];
-      @inbounds rj2_sum[:] += map(x -> x*x, chain.r);
-      r2_sum += dot(chain.r, chain.r);
-      @inbounds chain_μ_sum[:] += chain_μ(chain);
-      @inbounds μj2_sum[:] += map(x -> x*x, chain_μ(chain));
-      Usum += chain.U;
-      U2sum += chain.U*chain.U;
+      foreach(a -> record!(a, chain), scalar_averagers);
+      foreach(a -> record!(a, chain), vector_averagers);
     
     end # steps
 
@@ -262,23 +265,20 @@ function mcmc(nsteps::Int, pargs, callbacks)
   #end
   close(outfile);
 
-  return (end_to_end_sum, rj2_sum, r2_sum, chain_μ_sum, μj2_sum, μ2_sum, 
-          Usum, U2sum, ar);
+  return (scalar_averagers, vector_averagers, ar);
 
 end
 
-data = mcmc(pargs["num-steps"], pargs, callbacks);
+(sas, vas, ar) = mcmc(pargs["num-steps"], pargs, callbacks);
 total_steps = pargs["num-steps"] * pargs["num-inits"];
 
-println("<r>    =   $(data[1] / total_steps)");
-println("<r/nb> =   $(data[1] / 
-                      (total_steps*pargs["mlen"]*pargs["num-monomers"])
-                     )");
-println("<rj2>  =   $(data[2] / total_steps)");
-println("<r2>   =   $(data[3] / total_steps)");
-println("<p>    =   $(data[4] / total_steps)");
-println("<pj2>  =   $(data[5] / total_steps)");
-println("<p2>   =   $(data[6] / total_steps)");
-println("<U>    =   $(data[7] / total_steps)");
-println("<U2>   =   $(data[8] / total_steps)");
-println("AR     =   $(data[9])");
+println("<r>    =   $(get_avg(vas[1]))");
+println("<r/nb> =   $(get_avg(vas[1]) / (pargs["mlen"]*pargs["num-monomers"]))");
+println("<rj2>  =   $(get_avg(vas[2]))");
+println("<r2>   =   $(get_avg(sas[1]))");
+println("<p>    =   $(get_avg(vas[3]))");
+println("<pj2>  =   $(get_avg(vas[4]))");
+println("<p2>   =   $(get_avg(sas[2]))");
+println("<U>    =   $(get_avg(sas[3]))");
+println("<U2>   =   $(get_avg(sas[4]))");
+println("AR     =   $ar");

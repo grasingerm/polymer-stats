@@ -9,24 +9,25 @@ include(joinpath(@__DIR__, "dipole_response.jl"));
 abstract type Energy end
 
 mutable struct EAPChain
-  b::Real;
-  E0::Real;
+  b::Float64;
+  E0::Float64;
   μ::DipoleResponse;
   UFunction::Energy;
-  kT::Real;
-  Fz::Real;
-  Fx::Real;
+  kT::Float64;
+  Fz::Float64;
+  Fx::Float64;
   ϕs::FdVector;
   cϕs::FdVector;
   sϕs::FdVector;
   θs::FdVector;
   cθs::FdVector;
   sθs::FdVector;
+  Ω::Float64;
   μs::FdMatrix;
   us::FdVector;
   xs::FdMatrix;
   r::FdVector;
-  U::Real;
+  U::Float64;
 end
 
 @inline n(chain::EAPChain) = length(chain.ϕs);
@@ -81,6 +82,7 @@ function EAPChain(pargs::Dict)
                   θs,
                   map(cos, θs),
                   map(sin, θs),
+                  prod(map(sin, θs)) / (2.0 / π)^(pargs["num-monomers"]), # measure the solid angle in these units
                   zeros(3, pargs["num-monomers"]),
                   zeros(pargs["num-monomers"]),
                   zeros(3, pargs["num-monomers"]),
@@ -113,6 +115,7 @@ function EAPChain(chain::EAPChain)
                   chain.θs[:],
                   chain.cθs[:],
                   chain.sθs[:],
+                  chain.Ω,
                   chain.μs[:, :],
                   chain.us[:],
                   chain.xs[:, :],
@@ -146,15 +149,19 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.cϕs[idx] = cos(chain.ϕs[idx]);
     chain.sϕs[idx] = sin(chain.ϕs[idx]);
 
-    chain.θs[idx] += dθ;
+    chain.θs[idx] = min(π, max(0.0, chain.θs[idx]+dθ));
+    sθ = sin(chain.θs[idx]);
+    chain.Ω *= sθ / chain.sθs[idx]; # update solid angle
     chain.cθs[idx] = cos(chain.θs[idx]);
-    chain.sθs[idx] = sin(chain.θs[idx]);
+    chain.sθs[idx] = sθ;
 
+    # the order of these updates is important
     chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx], 
                                chain.cθs[idx], chain.sθs[idx]);
     chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
     update_xs!(chain, idx);
     chain.r[:] = end_to_end(chain);
+    chain.U = U(chain);
   end
   return (dϕ, dθ);
 end
