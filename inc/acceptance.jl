@@ -11,21 +11,25 @@ end
 abstract type Acceptor end;
 
 mutable struct Metropolis <: Acceptor
-  π_prev::Float64;
-  weight_function::Function;
+  logπ_prev::Float64;
+  weight_function::WeightFunction;
 end
 
-π_chain(chain::EAPChain) = exp(-chain.U / chain.kT) * chain.Ω;
+logπ_chain(chain::EAPChain) = -chain.U / chain.kT + chain.Ω;
 
-function Metropolis(chain::EAPChain, wf::Function)
-  return Metropolis(wf(chain) * π_chain(chain), wf);
+function logπ_chain(chain::EAPChain, log_wf::WeightFunction)
+  return -chain.U / chain.kT + chain.Ω + log_wf(chain);
+end
+
+function Metropolis(chain::EAPChain, wf::WeightFunction)
+  return Metropolis(logπ_chain(chain, wf), wf);
 end
 
 function (metro::Metropolis)(chain::EAPChain, ϵ::Real)
   metro.weight_function(chain);
-  π_curr = metro.weight_function(chain) * π_chain(chain);
-  if ϵ < π_curr / metro.π_prev
-    metro.π_prev = π_curr;
+  logπ_curr = logπ_chain(chain, metro.weight_function);
+  if (logπ_curr >= metro.logπ_prev) || (ϵ < exp(logπ_curr - metro.logπ_prev))
+    metro.logπ_prev = logπ_curr;
     return true;
   else
     return false;

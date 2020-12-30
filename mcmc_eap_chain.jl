@@ -3,6 +3,8 @@ using Distributions;
 using LinearAlgebra;
 using Logging;
 using DelimitedFiles;
+using ProfileView;
+using DecFP;
 
 include(joinpath("inc", "eap_chain.jl"));
 include(joinpath("inc", "average.jl"));
@@ -127,6 +129,13 @@ s = ArgParseSettings();
     help = "steps between storing microstates"
     arg_type = Int
     default = 500
+  "--numeric-type"
+    help = "numerical data type for averaging (float64|float128|big)"
+    arg_type = String
+    default = "float64"
+  "--profile", "-Z"
+    help = "profile the program"
+    action = :store_true
 end
 
 pargs = parse_args(s);
@@ -157,33 +166,65 @@ function mcmc(nsteps::Int, pargs, callbacks)
   dθ_dist = Uniform(-θstep, θstep);
   chain = EAPChain(pargs);
   chain.U = U(chain);
+  wf = AntiDipoleWeightFunction(chain);
   acceptor = if pargs["acc"] == "metropolis"
     Metropolis(
                chain, 
-               (pargs["umbrella-sampling"]) ? weight_anti_dipole : chain -> 1.0
+               (pargs["umbrella-sampling"]) ? wf : WeightlessFunction();
               );
   else
     error("'$(pargs["acc"])' acceptance criteria has not yet been implemented.");
   end
-  Avg, avgcons = if pargs["umbrella-sampling"]
-    UmbrellaAverager, (acc, chain) -> UmbrellaAverager(acc, weight_anti_dipole, 
-                                                       chain);
+  numeric_type = if pargs["numeric-type"] == "float64"
+    Float64;
+  elseif pargs["numeric-type"] == "float128"
+    Dec128;
+  elseif pargs["numeric-type"] == "big"
+    BigFloat;
+  else
+    error("numeric-type '$(pargs["numeric-type"])' not understood");
+    exit(-1);
+  end
+
+  Avg, avgcons, avgconss = if pargs["umbrella-sampling"]
+    (UmbrellaAverager, 
+      ((acc, chain) -> begin;
+        UmbrellaAverager(
+                         StandardAverager(
+                                          numeric_type(0.0*acc(chain)),
+                                          numeric_type(0.0),
+                                          acc
+                                         ),
+                         wf
+                        );
+     end),
+     ((acc, chain) -> begin;
+        UmbrellaAverager(
+                         StandardAverager(
+                                          Vector{numeric_type}(0.0*acc(chain)),
+                                          numeric_type(0.0),
+                                          acc
+                                         ),
+                         wf
+                        );
+     end)
+     );
   else
     StandardAverager, StandardAverager
   end
-  scalar_averagers = (Avg[
-                       avgcons(chain -> dot(end_to_end(chain), 
-                                            end_to_end(chain)), chain),
-                       avgcons(chain -> dot(chain_μ(chain), chain_μ(chain)), 
-                                        chain),
-                       avgcons(chain -> chain.U, chain),
-                       avgcons(chain -> chain.U*chain.U, chain),
+  scalar_averagers = (Avg{numeric_type,numeric_type}[
+                       (avgcons(chain -> dot(end_to_end(chain), 
+                                             end_to_end(chain)), chain)),
+                       (avgcons(chain -> dot(chain_μ(chain), chain_μ(chain)), 
+                                chain)),
+                       (avgcons(chain -> chain.U, chain)),
+                       (avgcons(chain -> chain.U*chain.U, chain)),
                       ]);
-  vector_averagers = (Avg{Vector{Float64}}[
-                       avgcons(end_to_end, chain),
-                       avgcons(chain -> map(x -> x*x, end_to_end(chain)), chain),
-                       avgcons(chain_μ, chain),
-                       avgcons(chain -> map(x -> x*x, chain_μ(chain)), chain)
+  vector_averagers = (Avg{Vector{numeric_type},numeric_type}[
+                       avgconss(end_to_end, chain),
+                       avgconss(chain -> map(x -> x*x, end_to_end(chain)), chain),
+                       avgconss(chain_μ, chain),
+                       avgconss(chain -> map(x -> x*x, chain_μ(chain)), chain)
                       ]);
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
 
@@ -266,10 +307,16 @@ function mcmc(nsteps::Int, pargs, callbacks)
   close(outfile);
 
   return (scalar_averagers, vector_averagers, ar);
-
 end
 
-(sas, vas, ar) = mcmc(pargs["num-steps"], pargs, callbacks);
+(sas, vas, ar) = if pargs["profile"]
+  @info "Profiling the mcmc code...";
+  mcmc(5, pargs, callbacks); # run first to compile code
+  @profview mcmc(pargs["num-steps"], pargs, callbacks);
+  exit(1);
+else
+  mcmc(pargs["num-steps"], pargs, callbacks);
+end
 total_steps = pargs["num-steps"] * pargs["num-inits"];
 
 println("<r>    =   $(get_avg(vas[1]))");

@@ -82,7 +82,7 @@ function EAPChain(pargs::Dict)
                   θs,
                   map(cos, θs),
                   map(sin, θs),
-                  prod(map(sin, θs)) / (2.0 / π)^(pargs["num-monomers"]), # measure the solid angle in these units
+                  log(prod(map(sin, θs))), # store logarithm of solid angle instead
                   zeros(3, pargs["num-monomers"]),
                   zeros(pargs["num-monomers"]),
                   zeros(3, pargs["num-monomers"]),
@@ -151,7 +151,7 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
 
     chain.θs[idx] = min(π, max(0.0, chain.θs[idx]+dθ));
     sθ = sin(chain.θs[idx]);
-    chain.Ω *= sθ / chain.sθs[idx]; # update solid angle
+    chain.Ω += log(sθ / chain.sθs[idx]); # update solid angle
     chain.cθs[idx] = cos(chain.θs[idx]);
     chain.sθs[idx] = sθ;
 

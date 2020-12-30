@@ -1,11 +1,13 @@
+
+
 const Accessor = Function;
 
 abstract type Averager end;
 
 # TODO: consider creating an averager which uses arbitrary precision arithmetic
-mutable struct StandardAverager{T} <: Averager
+mutable struct StandardAverager{T,N} <: Averager
   value::T;
-  normalizer::Float64;
+  normalizer::N;
   accessor::Accessor;
 end
 
@@ -24,15 +26,15 @@ function record!(stdavg::StandardAverager, chain::EAPChain)
   stdavg.normalizer += 1;
 end
 
-function record!(stdavg::StandardAverager{FdVector}, chain::EAPChain)
+function record!(stdavg::StandardAverager{<:Vector}, chain::EAPChain)
   stdavg.value[:] += stdavg.accessor(chain);
   stdavg.normalizer += 1;
 end
 
-const WeightFunction = Function;
+abstract type WeightFunction end;
 
-struct UmbrellaAverager{T} <: Averager
-  stdavg::StandardAverager{T};
+struct UmbrellaAverager{T,N} <: Averager
+  stdavg::StandardAverager{T,N};
   weightFunction::WeightFunction;
 end
 
@@ -43,17 +45,62 @@ end
 @inline get_avg(ua::UmbrellaAverager) = get_avg(ua.stdavg);
 
 function record!(ua::UmbrellaAverager, chain::EAPChain)
-  w = ua.weightFunction(chain);
-  ua.stdavg.value += ua.stdavg.accessor(chain) / w;
-  ua.stdavg.normalizer += 1.0 / w;
+  expw = exp(ua.weightFunction(chain));
+  ua.stdavg.value += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
 end
 
-function record!(ua::UmbrellaAverager{FdVector}, chain::EAPChain)
-  w = ua.weightFunction(chain);
-  ua.stdavg.value[:] += ua.stdavg.accessor(chain) / w;
-  ua.stdavg.normalizer += 1.0 / w;
+function record!(ua::UmbrellaAverager{Vector{<:Real}}, chain::EAPChain)
+  expw = exp(ua.weightFunction(chain));
+  ua.stdavg.value[:] += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
 end
 
-function weight_anti_dipole(chain::EAPChain)
-  return exp(sum(chain.us) / chain.kT);
+function record!(ua::UmbrellaAverager{Dec128}, chain::EAPChain)
+  expw = exp(Dec128(ua.weightFunction(chain)));
+  ua.stdavg.value += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
+end
+
+function record!(ua::UmbrellaAverager{Vector{Dec128}}, chain::EAPChain)
+  expw = exp(Dec128(ua.weightFunction(chain)));
+  ua.stdavg.value[:] += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
+end
+
+function record!(ua::UmbrellaAverager{BigFloat}, chain::EAPChain)
+  expw = exp(BigFloat(ua.weightFunction(chain)));
+  ua.stdavg.value += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
+end
+
+function record!(ua::UmbrellaAverager{Vector{BigFloat}}, chain::EAPChain)
+  expw = exp(BigFloat(ua.weightFunction(chain)));
+  ua.stdavg.value[:] += ua.stdavg.accessor(chain) / expw;
+  ua.stdavg.normalizer += 1.0 / expw;
+end
+
+struct WeightlessFunction <: WeightFunction
+end
+
+(wf::WeightlessFunction)(::EAPChain) = 1.0;
+
+struct AntiDipoleWeightFunction <: WeightFunction
+  log_gauge::Float64;
+end
+
+# forward call
+@inline AntiDipoleWeightFunction(chain::EAPChain) = AntiDipoleWeightFunction(chain, chain.μ);
+function AntiDipoleWeightFunction(chain::EAPChain, dr::DielectricResponse)
+  return AntiDipoleWeightFunction(-(dr.K1 + 2 * dr.K2) * chain.E0*chain.E0 *
+                                   n(chain) / (3 * chain.kT) + chain.Ω);
+end
+
+function AntiDipoleWeightFunction(chain::EAPChain, dr::PolarResponse)
+  return AntiDipoleWeightFunction(-eigvals(dr.M)[end] * chain.E0 *
+                                   n(chain) / (3 * chain.kT) + chain.Ω);
+end
+
+function (wf::AntiDipoleWeightFunction)(chain::EAPChain)
+  return sum(chain.us) / chain.kT - wf.log_gauge;
 end
