@@ -19,6 +19,22 @@ function StandardAverager(accessor::Accessor, chain::EAPChain)
                          );
 end
 
+function StandardAverager(dt::DataType, accessor::Accessor, chain::EAPChain)
+  return StandardAverager(
+                          dt(0.0 * accessor(chain)),
+                          dt(0.0),
+                          accessor
+                         );
+end
+
+function StandardAverager(dt1::DataType, dt2::DataType, accessor::Accessor, chain::EAPChain)
+  return StandardAverager(
+                          dt2(0.0 * accessor(chain)),
+                          dt1(0.0),
+                          accessor
+                         );
+end
+
 @inline get_avg(stdavg::StandardAverager) = stdavg.value / stdavg.normalizer;
 
 function record!(stdavg::StandardAverager, chain::EAPChain)

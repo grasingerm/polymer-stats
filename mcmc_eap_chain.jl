@@ -5,6 +5,7 @@ using Logging;
 using DelimitedFiles;
 using ProfileView;
 using DecFP;
+using Quadmath;
 
 include(joinpath("inc", "eap_chain.jl"));
 include(joinpath("inc", "average.jl"));
@@ -130,7 +131,7 @@ s = ArgParseSettings();
     arg_type = Int
     default = 500
   "--numeric-type"
-    help = "numerical data type for averaging (float64|float128|big)"
+    help = "numerical data type for averaging (float64|float128|dec128|big)"
     arg_type = String
     default = "float64"
   "--profile", "-Z"
@@ -178,6 +179,8 @@ function mcmc(nsteps::Int, pargs, callbacks)
   numeric_type = if pargs["numeric-type"] == "float64"
     Float64;
   elseif pargs["numeric-type"] == "float128"
+    Float128;
+  elseif pargs["numeric-type"] == "dec128"
     Dec128;
   elseif pargs["numeric-type"] == "big"
     BigFloat;
@@ -210,7 +213,21 @@ function mcmc(nsteps::Int, pargs, callbacks)
      end)
      );
   else
-    StandardAverager, StandardAverager
+    (StandardAverager,
+      ((acc, chain) -> begin;
+             StandardAverager(
+                              numeric_type,
+                              acc, chain
+                             )
+     end),
+     ((acc, chain) -> begin;
+             StandardAverager(
+                              numeric_type,
+                              Vector{numeric_type},
+                              acc, chain
+                             );
+     end)
+     );
   end
   scalar_averagers = (Avg{numeric_type,numeric_type}[
                        (avgcons(chain -> dot(end_to_end(chain), 
@@ -313,6 +330,8 @@ end
   @info "Profiling the mcmc code...";
   mcmc(5, pargs, callbacks); # run first to compile code
   @profview mcmc(pargs["num-steps"], pargs, callbacks);
+  println("Press ENTER to continue...");
+  readline(stdin);
   exit(1);
 else
   mcmc(pargs["num-steps"], pargs, callbacks);

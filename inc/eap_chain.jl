@@ -22,6 +22,7 @@ mutable struct EAPChain
   θs::FdVector;
   cθs::FdVector;
   sθs::FdVector;
+  n̂s::FdMatrix;
   Ω::Float64;
   μs::FdMatrix;
   us::FdVector;
@@ -37,7 +38,8 @@ end
 @inline n̂j(chain::EAPChain, idx::Int) = n̂(chain.cϕs[idx], chain.sϕs[idx],
                                           chain.cθs[idx], chain.sθs[idx]);
 
-function update_xs!(chain::EAPChain, idx::Int=1)
+function update_xs!(chain::EAPChain, idx::Int)
+  @warn "This implementation of update_xs! is generally slower than the vectorized implementation";
   if idx == 1
     @inbounds chain.xs[:, idx] = chain.b / 2 * n̂j(chain, idx);
     idx += 1;
@@ -47,6 +49,21 @@ function update_xs!(chain::EAPChain, idx::Int=1)
                                 chain.b / 2 * (n̂j(chain, i) + n̂j(chain, i-1))); 
   end
 end
+
+@inline function update_xs!(chain::EAPChain)
+  chain.xs[:, :] = chain.b*(cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
+end
+
+#=
+function update_xs!(chain::EAPChain)
+  @show chain.n̂s
+  @show cumsum(chain.n̂s, dims=2);
+  @show (cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
+  idx = rand(1:n(chain));
+  @assert(dot(chain.n̂s[:, idx], chain.n̂s[:, idx]) ≈ 1.0);
+  chain.xs[:, :] = chain.b*(cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
+end
+=#
 
 @inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[3];
 
@@ -82,6 +99,7 @@ function EAPChain(pargs::Dict)
                   θs,
                   map(cos, θs),
                   map(sin, θs),
+                  zeros(3, pargs["num-monomers"]),
                   log(prod(map(sin, θs))), # store logarithm of solid angle instead
                   zeros(3, pargs["num-monomers"]),
                   zeros(pargs["num-monomers"]),
@@ -89,6 +107,7 @@ function EAPChain(pargs::Dict)
                   zeros(3),
                   0.0
                  );
+  ret.n̂s[:, :] = hcat(map(j -> n̂j(ret, j), 1:n(ret))...);
   @simd for i=1:n(ret)
     @inbounds ret.μs[:, i] = dr(ret.E0, ret.cϕs[i], ret.sϕs[i], 
                                 ret.cθs[i], ret.sθs[i]);
@@ -115,6 +134,7 @@ function EAPChain(chain::EAPChain)
                   chain.θs[:],
                   chain.cθs[:],
                   chain.sθs[:],
+                  chain.n̂s[:, :],
                   chain.Ω,
                   chain.μs[:, :],
                   chain.us[:],
@@ -156,10 +176,11 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.sθs[idx] = sθ;
 
     # the order of these updates is important
+    chain.n̂s[:, idx] = n̂j(chain, idx);
     chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx], 
                                chain.cθs[idx], chain.sθs[idx]);
     chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
-    update_xs!(chain, idx);
+    update_xs!(chain);
     chain.r[:] = end_to_end(chain);
     chain.U = U(chain);
   end
@@ -169,11 +190,7 @@ end
 @inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
                                                  chain.b/2.0*n̂j(chain, n(chain)));
 
-@inline function chain_μ(chain::EAPChain)
-  @inbounds begin;
-    sum(map(i -> chain.μs[:, i], 1:n(chain)));
-  end
-end
+@inline chain_μ(chain::EAPChain) = reshape(sum(chain.μs, dims=2), 3);
 
 include(joinpath(@__DIR__, "energy.jl"));
 @inline U(chain::EAPChain) = chain.UFunction(chain); # forward energy call to chain
