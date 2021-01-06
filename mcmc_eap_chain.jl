@@ -76,6 +76,9 @@ s = ArgParseSettings();
     help = "maximum ϕ step length"
     arg_type = Float64;
     default = 3*π / 8;
+  "--do-flips"
+    help = "try reflecting monomer about xy plane in trial moves"
+    action = :store_true
   "--theta-step", "-q"
     help = "maximum θ step length"
     arg_type = Float64;
@@ -251,9 +254,10 @@ function mcmc(nsteps::Int, pargs, callbacks)
   for init=1:pargs["num-inits"]
 
     for step=1:nsteps
-      dϕ = rand(dϕ_dist);
-      dθ = rand(dθ_dist);
       idx = rand(1:n(chain));
+      dϕ = rand(dϕ_dist);
+      dθ = (((pargs["do-flips"] && rand(Bool)) ? π - 2*chain.θs[idx] : 0) 
+            + rand(dθ_dist));
       trial_chain = EAPChain(chain);
       move!(trial_chain, idx, dϕ, dθ);
       if acceptor(trial_chain, rand())

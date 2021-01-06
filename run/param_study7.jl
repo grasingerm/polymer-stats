@@ -16,10 +16,10 @@ end
 end
 
 cases = Any[];
-E0s = [0.1; 1.0; 2.5; 5.0; 7.5; 10.0; 12.5; 15.0; 20.0; 25.0];
-Ks = zip([1.0; 0.0], [0.0; 1.0])
+E0s = [1.0; 1.25; 1.5; 2.0; 2.5; 5.0; 7.5; 10.0];
+Ks = zip([1.0; 0.0], [0.0; 1.0]);
 kTs = [1.0];
-Fzs = vcat(collect(range(0.0, 1.0; step=0.1)), range(5.0, 20.0; step=2.5), range(40.0, 100.0; step=20.0));
+Fzs = vcat(collect(range(0.0, 1.0; step=0.1)), range(2.0, 4.0; step=1.0), range(5.0, 20.0; step=2.5), 40.0);
 Fxs = [0.0];
 ns = Int[100];
 bs = [1.0];
@@ -36,7 +36,7 @@ pmap(case -> begin;
   outfile = joinpath(workdir, "$(prefix(case)).out");
   if !isfile(outfile)
     println("Running case: $case.");
-    command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type noninteracting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1500000 -v 2 --prefix $(joinpath(workdir, prefix(case))) --umbrella-sampling --numeric-type big`;
+    command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type noninteracting --do-flips -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1500000 -v 2 --prefix $(joinpath(workdir, prefix(case))) --umbrella-sampling --numeric-type big`;
     output = read(command, String);
     write(outfile, output); 
   else

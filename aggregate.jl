@@ -1,5 +1,7 @@
 using Glob;
 using DelimitedFiles;
+using Quadmath;
+using DecFP;
 
 if length(ARGS) != 3
   println("usage: julia aggregate.jl <outfile> <indir> <pattern>");
