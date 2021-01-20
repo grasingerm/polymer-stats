@@ -13,7 +13,7 @@ include(joinpath("inc", "acceptance.jl"));
 
 s = ArgParseSettings();
 @add_arg_table! s begin
-  "--E0", "-z"
+  "--E0", "-e"
     help = "magnitude of electric field"
     arg_type = Float64
     default = 0.0
@@ -33,7 +33,7 @@ s = ArgParseSettings();
     arg_type = Float64
     default = 1e-2
     help = "dipole magnitude (electret chain)"
-  "--energy-type", "-e"
+  "--energy-type", "-u"
     help = "energy type (noninteracting|interacting)"
     arg_type = String
     default = "noninteracting"
@@ -51,6 +51,14 @@ s = ArgParseSettings();
     default = 0.0
   "--Fx", "-G"
     help = "force in the x-direction (force ensemble)"
+    arg_type = Float64
+    default = 0.0
+  "--rz", "-z"
+    help = "end-to-end vector in the z-direction (direction of E-field; etoe ensemble)"
+    arg_type = Float64
+    default = 0.0
+  "--rx", "-x"
+    help = "end-to-end vector in the x-direction (etoe ensemble)"
     arg_type = Float64
     default = 0.0
   "--mlen", "-b"
@@ -86,7 +94,7 @@ s = ArgParseSettings();
   "--chain-frac-step", "-f"
     help = "fraction of monomers to step (end-to-end ensemble)"
     arg_type = Float64
-    default = 0.10
+    default = 0.15
   "--step-adjust-lb", "-L"
     help = "adjust step sizes if acc. ratio below this threshold"
     arg_type = Float64
@@ -103,14 +111,14 @@ s = ArgParseSettings();
     help = "steps between step size adjustments"
     arg_type = Int
     default = 2500
-  "--acc", "-x"
+  "--acc", "-a"
     help = "acceptance function (metropolis|kawasaki)"
     arg_type = String
     default = "metropolis"
   "--umbrella-sampling", "-B"
     help = "use umbrella sampling (w/ electrostatic weight function)"
     action = :store_true
-  "--update-freq", "-u"
+  "--update-freq"
     help = "update frequency (seconds)"
     arg_type = Float64;
     default = 15.0;
@@ -118,9 +126,6 @@ s = ArgParseSettings();
     help = "verbosity level: 0-nothing, 1-errors, 2-warnings, 3-info"
     arg_type = Int
     default = 3
-  "--callbacks", "-C"
-    help = "file with callback functions"
-    arg_type = String
   "--prefix", "-P"
     help = "prefix for output files"
     arg_type = String
@@ -154,17 +159,11 @@ else
   global_logger(Logging.NullLogger());
 end
 
-callbacks = Any[];
-try
-  callbacks = if pargs["callbacks"] !== nothing
-                evalfile(pargs["callbacks"])
-              end
-catch e
-  @error "error occured loading $(pargs["callbacks"])";
-  rethrow();
+if pargs["ensemble-type"] == "end-to-end"
+  @warn "'end-to-end' ensemble is an experimental option; it has not been validated.";
 end
 
-function mcmc(nsteps::Int, pargs, callbacks)
+function mcmc(nsteps::Int, pargs)
   ϕstep, θstep = pargs["phi-step"], pargs["theta-step"];
   dϕ_dist = Uniform(-ϕstep, ϕstep);
   dθ_dist = Uniform(-θstep, θstep);
@@ -191,6 +190,9 @@ function mcmc(nsteps::Int, pargs, callbacks)
     error("numeric-type '$(pargs["numeric-type"])' not understood");
     exit(-1);
   end
+
+  force_ensemble_flag = pargs["ensemble-type"] == "force";
+  r0 = [pargs["rx"]; 0.0; pargs["rz"]];
 
   Avg, avgcons, avgconss = if pargs["umbrella-sampling"]
     (UmbrellaAverager, 
@@ -252,6 +254,14 @@ function mcmc(nsteps::Int, pargs, callbacks)
   last_update = start;
   num_accepted = 0;
   for init=1:pargs["num-inits"]
+      
+    if !force_ensemble_flag
+      for i=1:10 
+        if move!(chain, 1, 0, 0, r0; frac_mv=1.0) # start with admissible chain
+          break;
+        end
+      end
+    end
 
     for step=1:nsteps
       idx = rand(1:n(chain));
@@ -259,8 +269,12 @@ function mcmc(nsteps::Int, pargs, callbacks)
       dθ = (((pargs["do-flips"] && rand(Bool)) ? π - 2*chain.θs[idx] : 0) 
             + rand(dθ_dist));
       trial_chain = EAPChain(chain);
-      move!(trial_chain, idx, dϕ, dθ);
-      if acceptor(trial_chain, rand())
+      successful = if force_ensemble_flag
+        move!(trial_chain, idx, dϕ, dθ);
+      else
+        move!(trial_chain, idx, dϕ, dθ, r0; frac_mv=pargs["chain-frac-step"]);
+      end
+      if successful && acceptor(trial_chain, rand())
         chain = trial_chain;
         num_accepted += 1;
       end
@@ -332,13 +346,13 @@ end
 
 (sas, vas, ar) = if pargs["profile"]
   @info "Profiling the mcmc code...";
-  mcmc(5, pargs, callbacks); # run first to compile code
-  @profview mcmc(pargs["num-steps"], pargs, callbacks);
+  mcmc(5, pargs); # run first to compile code
+  @profview mcmc(pargs["num-steps"], pargs);
   println("Press ENTER to continue...");
   readline(stdin);
   exit(1);
 else
-  mcmc(pargs["num-steps"], pargs, callbacks);
+  mcmc(pargs["num-steps"], pargs);
 end
 total_steps = pargs["num-steps"] * pargs["num-inits"];
 

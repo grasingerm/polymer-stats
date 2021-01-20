@@ -1,4 +1,6 @@
 using Distributions;
+using NLsolve;
+using ForwardDiff;
 
 include(joinpath(@__DIR__, "dipole_response.jl"));
 
@@ -184,7 +186,90 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.r[:] = end_to_end(chain);
     chain.U = U(chain);
   end
-  return (dϕ, dθ);
+  return true;
+end
+
+function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real, r0::AbstractVector;
+               frac_mv::Real = 0.15, acc_tol::Real = 1e-1)
+
+  @assert(frac_mv > 0.0 && frac_mv <= 1.0, 
+          "Fraction of chain to move must be between 0.0 and 1.0");
+
+  L0 = chain.b * n(chain);
+  
+  trial_idxs = if (idx / n(chain)) >= (1 - frac_mv)
+    max(1, round(Int, (1 - frac_mv)*n(chain))):n(chain);
+  elseif (idx / n(chain)) <= frac_mv
+    1:(min(n(chain), round(Int, frac_mv*n(chain))));
+  else
+    (max(1, round(Int, idx - frac_mv*n(chain)/2.0))):round(Int, idx + frac_mv*n(chain)/2.0)
+  end
+
+  r1 = chain.b * ([
+                   sum(chain.cϕs[trial_idxs] .* chain.sθs[trial_idxs]);
+                   sum(chain.sϕs[trial_idxs] .* chain.sθs[trial_idxs]);
+                   sum(chain.cθs[trial_idxs])
+                  ]);
+
+  # internal lambda function for solving nonlinear system
+  f! = (F::Vector, x::Vector) -> begin;
+    n = convert(Int, length(x) / 2);
+    cϕs = map(cos, x[1:n]);
+    sϕs = map(sin, x[1:n]);
+    sθs = map(sin, x[(n+1):(2*n)]);
+    F[1] = chain.b * sum(cϕs .* sθs) - r1[1];
+    F[2] = chain.b * sum(sϕs .* sθs) - r1[2];
+    F[3] = chain.b * sum(map(cos, x[(n+1):(2*n)])) - r1[3];
+  end
+
+  #=
+  j! = (J::Matrix, x::Vector) -> begin;
+    n = convert(Int, length(x) / 2);
+    cϕs = map(cos, x[1:n]);
+    sϕs = map(sin, x[1:n]);
+    cθs = map(cos, x[(n+1):(2*n)]);
+    sθs = map(sin, x[(n+1):(2*n)]);
+    J[:, :] = chain.b * hcat(map(i -> [cϕs[i]*cθs[i] -sϕs[i]*sθs[i];
+                                       sϕs[i]*cθs[i]  cϕs[i]*sθs[i];
+                                       -sθs[i]        0.0;], 1:n)...);
+  end
+  =#
+
+  # trial move initial guess
+  x0 = vcat(chain.ϕs[trial_idxs], chain.θs[trial_idxs]);
+  local_idx = findnext(i -> i==idx, collect(trial_idxs), 1);
+  x0[local_idx] += dϕ;
+  x0[2*local_idx] += dθ;
+
+  # solve nonlinear system to ensure end to end vector constrain is satisfied
+  result = nlsolve(f!, x0);
+  if result.residual_norm / L0 > acc_tol
+    @warn "residual norm is high", result.residual_norm / L0;
+    return false;
+  end
+
+  # update chain based on result
+  m = length(trial_idxs);
+  chain.ϕs[trial_idxs] = result.zero[1:m];
+  chain.θs[trial_idxs] = result.zero[(m+1):(2*m)];
+  chain.cϕs[trial_idxs] = map(cos, chain.ϕs[trial_idxs]);
+  chain.sϕs[trial_idxs] = map(sin, chain.ϕs[trial_idxs]);
+  chain.cθs[trial_idxs] = map(cos, chain.θs[trial_idxs]);
+  chain.sθs[trial_idxs] = map(sin, chain.θs[trial_idxs]);
+
+  # the order of these updates is important
+  chain.n̂s[:, trial_idxs] = hcat(map(idx -> n̂j(chain, idx), trial_idxs)...);
+  chain.μs[:, trial_idxs] = hcat(map(idx -> chain.μ(chain.E0, chain.cϕs[idx], 
+                                                    chain.sϕs[idx], chain.cθs[idx], 
+                                                    chain.sθs[idx]), 
+                                     trial_idxs)...);
+  chain.us[trial_idxs] = map(idx -> u(chain.E0, view(chain.μs, :, idx)), 
+                             trial_idxs);
+  update_xs!(chain);
+  chain.r[:] = end_to_end(chain);
+  chain.U = U(chain);
+  
+  return true;
 end
 
 @inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
