@@ -4,7 +4,7 @@ using ArgParse;
 using Plots;
 
 s = ArgParseSettings();
-@add_arg_table s begin
+@add_arg_table! s begin
   "--E0", "-z"
     help = "magnitude of electric field"
     arg_type = Float64
