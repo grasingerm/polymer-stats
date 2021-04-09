@@ -21,7 +21,7 @@ Documentation of this work is still in progress. However, I am very receptive to
 
 ## Citations
 There are a few papers associated with polymer-stats. 
-If you found this code useful for your research, please be kind enough to cite it, using the DOIs https://doi.org/10.1039/D0SM00845A, or the following BiBTeX entries:
+If you found this code useful for your research, please be kind enough to cite it, using the DOIs 10.1039/D0SM00845A and 10.1073/pnas.2102477, or the following BiBTeX entries:
 
 
     @article{grasinger2020statistical,
@@ -32,7 +32,17 @@ If you found this code useful for your research, please be kind enough to cite i
       number={27},
       pages={6265--6284},
       year={2020},
-      publisher={Royal Society of Chemistry}
+      publisher={Royal Society of Chemistry},
+      doi={10.1039/D0SM00845A}
+    }
+    
+    @article{grasinger2021flexoelectricity,
+      title={Flexoelectricity in soft elastomers: molecular mechanisms, materials design and the emergence of giant flexoelectricity},
+      author={Grasinger, Matthew and Mozaffari, Kosar and Sharma, Pradeep},
+      journal={Proceedings of the National Academy of Sciences},
+      year={in-press},
+      publisher={National Acad Sciences},
+      doi={10.1073/pnas.2102477}
     }
 
     @phdthesis{grasinger2019multiscale,
