@@ -6,18 +6,24 @@ As of now, chains consisting of polar monomers and dipole-dipole interactions (f
 
 ## Getting started
 This research code is written in the [julia language](https://julialang.org/).
+In the root directory, there is a script for installing package dependences:
+    
+    julia install_dependencies.jl
+    
 The main file for the mean-field theory simulations is ``mean_field.jl``.
 You can see options by running:
 
     julia mean_field.jl --help
     
+The theoretical details of this code can be found in the first reference (in particular, sections 3 and 4.1) in the Citations section below.
+
 The main file for the Markov chain Monte carlo method is ``mcmc_eap_chain.jl``.
 You can see options by running:
 
     julia mcmc_eap_chain.jl --help
 
 ## Questions
-Documentation of this work is still in progress. However, I am very receptive to questions and comments via email. You can email questions to grasingerm at gmail dot com.
+Documentation of this work is still in progress. However, I am very receptive to questions and comments via email. You can email questions to grasingerm@gmail.com.
 
 ## Citations
 There are a few papers associated with polymer-stats. 
