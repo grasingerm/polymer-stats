@@ -119,6 +119,6 @@ end
 
 function (wf::AntiDipoleWeightFunction)(chain::EAPChain)
   return (sum(chain.us) / chain.kT * 
-          (0.2 + 0.8*(1.0 - exp(-(chain.Fx^2+chain.Fz^2)/chain.kT))) 
+          (0.2 + 0.8*(exp(-(chain.Fx^2+chain.Fz^2)/chain.kT))) 
           - wf.log_gauge);
 end
