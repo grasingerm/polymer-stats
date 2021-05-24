@@ -42,13 +42,16 @@ If you found this code useful for your research, please be kind enough to cite i
       doi={10.1039/D0SM00845A}
     }
     
-    @article{grasinger2021flexoelectricity,
-      title={Flexoelectricity in soft elastomers: molecular mechanisms, materials design and the emergence of giant flexoelectricity},
-      author={Grasinger, Matthew and Mozaffari, Kosar and Sharma, Pradeep},
-      journal={Proceedings of the National Academy of Sciences},
-      year={in-press},
-      publisher={National Acad Sciences},
-      doi={10.1073/pnas.2102477}
+    @article {grasinger2021flexoelectricity,
+	  author = {Grasinger, Matthew and Mozaffari, Kosar and Sharma, Pradeep},
+	  title = {Flexoelectricity in soft elastomers and the molecular mechanisms underpinning the design and emergence of giant flexoelectricity},
+	  volume = {118},
+	  number = {21},
+	  year = {2021},
+	  doi = {10.1073/pnas.2102477118},
+	  publisher = {National Academy of Sciences},
+	  issn = {0027-8424},
+	  journal = {Proceedings of the National Academy of Sciences}
     }
 
     @phdthesis{grasinger2019multiscale,
