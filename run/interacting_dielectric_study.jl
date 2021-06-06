@@ -37,7 +37,7 @@ pmap(case -> begin;
   outfile = joinpath(workdir, "$(prefix(case)).out");
   if !isfile(outfile)
     println("Running case: $case.");
-    command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type interacting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1000000 -v 2 --prefix $(joinpath(workdir, prefix(case))) --numeric-type big`;
+    command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type interacting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 250000 -v 2 --prefix $(joinpath(workdir, prefix(case))) --numeric-type big`;
     output = read(command, String);
     write(outfile, output); 
   else

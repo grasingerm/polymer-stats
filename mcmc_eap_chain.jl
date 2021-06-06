@@ -249,6 +249,9 @@ function mcmc(nsteps::Int, pargs)
                        avgconss(chain -> map(x -> x*x, chain_μ(chain)), chain)
                       ]);
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
+  writedlm(outfile, ["step" "r1" "r2" "r3" "p1" "p2" "p3" "U"], ',');
+  rollfile = open("$(pargs["prefix"])_rolling.csv", "w");
+  writedlm(rollfile, ["step" "r1" "r2" "r3" "r1sq" "r2sq" "r3sq" "rsq" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psq" "U" "Usq"], ',');
 
   start = time();
   last_update = start;
@@ -308,14 +311,28 @@ function mcmc(nsteps::Int, pargs)
       #for callback in callbacks
       #  callback(chain, step, false, false, pargs);
       #end
+      foreach(a -> record!(a, chain), scalar_averagers);
+      foreach(a -> record!(a, chain), vector_averagers);
       if step % pargs["stepout"] == 0
         writedlm(outfile, 
                  hcat(step, transpose(chain.r), 
                       transpose(chain_μ(chain)), chain.U), 
                  ',');
+        writedlm(rollfile, 
+                 hcat(
+                      step,
+                      get_avg(vector_averagers[1]), # r
+                      get_avg(vector_averagers[2]), # rj2
+                      get_avg(scalar_averagers[1]), # r2
+                      get_avg(vector_averagers[3]), # p
+                      get_avg(vector_averagers[4]), # pj2
+                      get_avg(scalar_averagers[2]), # p2
+                      get_avg(scalar_averagers[3]), # U
+                      get_avg(scalar_averagers[4])  # U2
+                     )
+                 ',');
+
       end
-      foreach(a -> record!(a, chain), scalar_averagers);
-      foreach(a -> record!(a, chain), vector_averagers);
     
     end # steps
 
@@ -340,6 +357,7 @@ function mcmc(nsteps::Int, pargs)
   #  callback(chain, pargs["num-steps"], false, true, pargs);
   #end
   close(outfile);
+  close(rollfile);
 
   return (scalar_averagers, vector_averagers, ar);
 end
