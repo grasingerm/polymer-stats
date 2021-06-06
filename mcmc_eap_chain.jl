@@ -321,15 +321,15 @@ function mcmc(nsteps::Int, pargs)
         writedlm(rollfile, 
                  hcat(
                       step,
-                      get_avg(vector_averagers[1]), # r
-                      get_avg(vector_averagers[2]), # rj2
+                      transpose(get_avg(vector_averagers[1])), # r
+                      transpose(get_avg(vector_averagers[2])), # rj2
                       get_avg(scalar_averagers[1]), # r2
-                      get_avg(vector_averagers[3]), # p
-                      get_avg(vector_averagers[4]), # pj2
+                      transpose(get_avg(vector_averagers[3])), # p
+                      transpose(get_avg(vector_averagers[4])), # pj2
                       get_avg(scalar_averagers[2]), # p2
                       get_avg(scalar_averagers[3]), # U
                       get_avg(scalar_averagers[4])  # U2
-                     )
+                     ),
                  ',');
 
       end
