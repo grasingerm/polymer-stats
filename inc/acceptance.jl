@@ -25,9 +25,10 @@ function Metropolis(chain::EAPChain, wf::WeightFunction)
   return Metropolis(logπ_chain(chain, wf), wf);
 end
 
-function (metro::Metropolis)(chain::EAPChain, ϵ::Real)
+# alpha is a ratio of trial move probabilities (related to clustering)
+function (metro::Metropolis)(chain::EAPChain, ϵ::Real; α::Real = 1.0)
   metro.weight_function(chain);
-  logπ_curr = logπ_chain(chain, metro.weight_function);
+  logπ_curr = logπ_chain(chain, metro.weight_function) + log(α);
   if (logπ_curr >= metro.logπ_prev) || (ϵ < exp(logπ_curr - metro.logπ_prev))
     metro.logπ_prev = logπ_curr;
     return true;

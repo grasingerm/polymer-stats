@@ -14,3 +14,10 @@ struct InteractingEnergy <: Energy end
   return (sum(chain.us) + U_interaction(chain)
           - dot(end_to_end(chain), [chain.Fx; 0.0; chain.Fz]));
 end
+
+struct IsingEnergy <: Energy end
+
+@inline function (::IsingEnergy)(chain::EAPChain)
+  return (sum(chain.us) + U_Ising(chain)
+          - dot(end_to_end(chain), [chain.Fx; 0.0; chain.Fz]));
+end

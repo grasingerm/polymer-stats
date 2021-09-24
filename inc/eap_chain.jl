@@ -8,6 +8,7 @@ include(joinpath(@__DIR__, "dipole_response.jl"));
 θ_dist = Uniform(0.0, π);
 
 # the way that the energy functions are organized is a mess; I'm sorry
+# also... not sorry
 abstract type Energy end
 
 mutable struct EAPChain
@@ -89,6 +90,8 @@ function EAPChain(pargs::Dict)
                     NonInteractingEnergy();
                   elseif pargs["energy-type"] == "interacting"
                     InteractingEnergy();
+                  elseif pargs["energy-type"] == "Ising"
+                    IsingEnergy();
                   else
                     error("energy-type is not understood.");
                   end,
@@ -158,9 +161,26 @@ function U_interaction(chain::EAPChain)
       r̂ = r / rmag;
       r3 = r2*rmag;
       μi = view(chain.μs, :, i);
-      μj = view(chain.μs, :, i);
-      U += (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π);
+      μj = view(chain.μs, :, j);
+      U += (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π*r3);
     end
+  end
+  return U;
+end
+
+# TODO: consider rewriting this to make better use of past calculations
+# this is probably by far the slowest calculation *shrug emoji*
+function U_Ising(chain::EAPChain)
+  U = 0.0;
+  @inbounds for i=1:n(chain)-1
+    r = chain.xs[:, i] - chain.xs[:, i+1];
+    r2 = dot(r, r);
+    rmag = sqrt(r2);
+    r̂ = r / rmag;
+    r3 = r2*rmag;
+    μi = view(chain.μs, :, i);
+    μj = view(chain.μs, :, i+1);
+    U += (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π*r3);
   end
   return U;
 end
@@ -187,6 +207,89 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.U = U(chain);
   end
   return true;
+end
+
+function flip_n!(chain::EAPChain, idx::Int)
+  move!(chain, idx, π, π - 2*chain.θs[idx])
+end
+
+pflip_linear(ip::Real) = (1 + ip) / 2;
+
+function cluster_flip!(chain::EAPChain, idx::Int; 
+                       pflip::Function = pflip_linear,
+                       ϵflip::Real = 1.0,
+                       ηerr::Real = 1e-10
+                      )
+  
+  # grow the cluster to the right
+  upper_p = NaN;
+  upper_idx = idx;
+  while true
+    if upper_idx >= n(chain)
+      upper_p = 0.0;
+      break;
+    end
+    upper_p = pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
+    if rand() <= upper_p
+      upper_idx += 1
+    else
+      break;
+    end
+  end
+  @assert(!isnan(upper_p) && upper_idx <= n(chain));
+
+  # grow the cluster to the left
+  lower_p = NaN;
+  lower_idx = idx;
+  while true
+    if lower_idx <= 1
+      lower_p = 0.0;
+      break;
+    end
+    lower_p = pflip_linear(dot(n̂j(chain, lower_idx), n̂j(chain, lower_idx-1)));
+    if rand() <= lower_p
+      lower_idx -= 1
+    else
+      break;
+    end
+  end
+  @assert(!isnan(lower_p) && lower_idx >= 1);
+
+  if rand() <= ϵflip
+    prev_n̂s = copy(chain.n̂s[:, lower_idx:upper_idx]);
+    for i in lower_idx:upper_idx
+      flip_n!(chain, i);
+    end
+
+    if norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) > ηerr
+      println("prev");
+      display(prev_n̂s)
+      println();
+      println("curr");
+      display(chain.n̂s[:, lower_idx:upper_idx])
+      println();
+      @show(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf))
+    end
+    @assert(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) < ηerr);
+
+    new_upper_p = if upper_idx < n(chain)
+      pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
+    else
+      0
+    end
+    new_lower_p = if lower_idx > 1
+      pflip_linear(dot(n̂j(chain, lower_idx), n̂j(chain, lower_idx-1)));
+    else
+      0
+    end
+    return ( 
+             ((1 - new_upper_p)*(1 - new_lower_p)) /
+             ((1 - upper_p)*(1 - lower_p))
+            );
+  else
+    return 1.0;
+  end
+
 end
 
 function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real, r0::AbstractVector;
