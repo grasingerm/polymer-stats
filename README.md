@@ -22,6 +22,12 @@ You can see options by running:
 
     julia mcmc_eap_chain.jl --help
 
+An experimental algorithm for clustering of the chain is implmeneted in ``mcmc_clustering_eap_chain.jl``.
+You can see options by running:
+
+    julia mcmc_clustering_eap_chain.jl --help
+
+
 ## Questions
 Documentation of this work is still in progress. However, I am very receptive to questions and comments via email. You can email questions to grasingerm@gmail.com.
 
