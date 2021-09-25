@@ -92,9 +92,6 @@ s = ArgParseSettings();
   "--do-flips"
     help = "trial moves with flipping monomers"
     action = :store_true
-  "--do-clustering"
-    help = "trial moves with clustering"
-    action = :store_true
   "--theta-step", "-q"
     help = "maximum θ step length"
     arg_type = Float64;
@@ -263,7 +260,9 @@ function mcmc(nsteps::Int, pargs)
 
   start = time();
   last_update = start;
-  num_accepted = 0;
+  nacc = 0;
+  nacc_total = 0;
+  natt = 0;
   for init=1:pargs["num-inits"]
       
     if !force_ensemble_flag
@@ -287,8 +286,10 @@ function mcmc(nsteps::Int, pargs)
       end
       if successful && acceptor(trial_chain, rand())
         chain = trial_chain;
-        num_accepted += 1;
+        nacc += 1;
+        nacc_total += 1;
       end
+      natt += 1;
 
       if time() - last_update > pargs["update-freq"]
         @info "elapsed: $(time() - start)";
@@ -301,14 +302,18 @@ function mcmc(nsteps::Int, pargs)
           pargs["step-adjust-scale"] != 1.0 &&
           step % pargs["steps-per-adjust"] == 0
          ) # adjust step size?
-        acc_ratio = num_accepted / (step + (init - 1)*nsteps);
+        acc_ratio = nacc / natt;
         if (acc_ratio > pargs["step-adjust-ub"] &&
             ϕstep != π && θstep != π/2)
           @info "acceptance ratio is high; increasing step size";
+          nacc = 0;
+          natt = 0;
           ϕstep = min(π, ϕstep*pargs["step-adjust-scale"]);
           θstep = min(π/2, θstep*pargs["step-adjust-scale"]);
         elseif acc_ratio < pargs["step-adjust-lb"]
           @info "acceptance ratio is low; decreasing step size";
+          nacc = 0;
+          natt = 0;
           ϕstep /= pargs["step-adjust-scale"];
           θstep /= pargs["step-adjust-scale"];
         end
@@ -357,7 +362,7 @@ function mcmc(nsteps::Int, pargs)
 
   end
   
-  ar = num_accepted / (pargs["num-inits"]*pargs["num-steps"]);
+  ar = nacc_total / (pargs["num-inits"]*pargs["num-steps"]);
   @info "total time elapsed: $(time() - start)";
   @info "acceptance rate: $ar";
 
