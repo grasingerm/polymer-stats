@@ -27,6 +27,8 @@ end
 
 @info "total number of cases to run: $(length(cases))";
 
+mkpath(workdir);
+
 pmap(case -> begin;
 
   outfile = joinpath(workdir, "$(prefix(case)).out");

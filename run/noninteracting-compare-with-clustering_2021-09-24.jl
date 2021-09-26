@@ -27,9 +27,14 @@ end
 
 @info "total number of cases to run: $(length(cases))";
 
+mkpath(workdir);
+mkpath(joinpath(workdir, "standard"));
+mkpath(joinpath(workdir, "umbrella"));
+mkpath(joinpath(workdir, "clustering"));
+
 pmap(case -> begin;
 
-  outfile = joinpath(workdir, "$(prefix(case))_standard.out");
+  outfile = joinpath(workdir, "standard", "$(prefix(case))_standard.out");
   if !isfile(outfile)
     println("Running case: $case.");
     command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type noninteracting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1000000 -v 2 --prefix $(joinpath(workdir, prefix(case), "standard"))`;
@@ -39,7 +44,7 @@ pmap(case -> begin;
     println("Case: $case has already been run.");
   end
 
-  outfile = joinpath(workdir, "$(prefix(case))_umbrella.out");
+  outfile = joinpath(workdir, "umbrella", "$(prefix(case))_umbrella.out");
   if !isfile(outfile)
     println("Running case: $case.");
     command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type noninteracting --umbrella-sampling -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1000000 -v 2 --prefix $(joinpath(workdir, prefix(case)), "umbrella")`;
@@ -49,7 +54,7 @@ pmap(case -> begin;
     println("Case: $case has already been run.");
   end
 
-  outfile = joinpath(workdir, "$(prefix(case))_clustering.out");
+  outfile = joinpath(workdir, "clustering", "$(prefix(case))_clustering.out");
   if !isfile(outfile)
     println("Running case: $case.");
     command = `julia -O 3 mcmc_clustering_eap_chain.jl --chain-type dielectric --energy-type noninteracting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 1000000 -v 2 --prefix $(joinpath(workdir, prefix(case)), "clustering")`;
