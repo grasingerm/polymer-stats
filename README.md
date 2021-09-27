@@ -26,7 +26,9 @@ An experimental algorithm for clustering of the chain is implmeneted in ``mcmc_c
 You can see options by running:
 
     julia mcmc_clustering_eap_chain.jl --help
-
+    
+It has been verified against analytical results, so I am relatively confident in its correctness.
+The expectation is that the clustering algorithm will vastly improve the convergence rate for dielectric chains with monomer-monomer interactions, but this has not been studied yet.
 
 ## Questions
 Documentation of this work is still in progress. However, I am very receptive to questions and comments via email. You can email questions to grasingerm@gmail.com.
