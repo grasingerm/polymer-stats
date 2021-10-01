@@ -64,6 +64,36 @@ for run in runs
   push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
                     :kT => 1, :Fz => 0,
                     :Fx => 0, :n => 100, :b => 0.5, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 0,
+                    :Fx => 0, :n => 100, :b => 2.0, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 1,
+                    :Fx => 0, :n => 100, :b => 0.5, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 0,
+                    :Fx => 1, :n => 100, :b => 0.5, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 1,
+                    :Fx => 1, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 3, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 3,
+                    :Fx => 3, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 3,
+                    :Fx => 0, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 5,
+                    :Fx => 0, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 0,
+                    :Fx => 3, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 1, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 0,
+                    :Fx => 5, :n => 100, :b => 1, :run => run));
+  push!(cases, Dict(:E0 => 5, :K1 => 1, :K2 => 0.0,
+                    :kT => 1, :Fz => 5,
+                    :Fx => 5, :n => 100, :b => 1, :run => run));
 end
 
 @info "total number of cases to run: $(length(cases))";
