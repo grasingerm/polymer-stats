@@ -65,10 +65,6 @@ s = ArgParseSettings();
     help = "maximum ϕ step length"
     arg_type = Float64;
     default = 3*π / 8;
-  "--theta-step", "-q"
-    help = "maximum θ step length"
-    arg_type = Float64;
-    default = 3*π / 16;
 #  "--do-clustering"
 #    help = "trial moves with clustering"
 #    action = :store_true
@@ -137,9 +133,8 @@ else
 end
 
 function mcmc(nsteps::Int, pargs)
-  ϕstep, θstep = pargs["phi-step"], pargs["theta-step"];
+  ϕstep = pargs["phi-step"];
   dϕ_dist = Uniform(-ϕstep, ϕstep);
-  dθ_dist = Uniform(-θstep, θstep);
   chain = EAPChain(pargs);
   chain.U = U(chain);
   wf = AntiDipoleWeightFunction(chain);
@@ -217,9 +212,9 @@ function mcmc(nsteps::Int, pargs)
                       ]);
 
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
-  writedlm(outfile, ["step" "r1" "r2" "r3" "p1" "p2" "p3" "U"], ',');
+  writedlm(outfile, ["step" "r1" "r3" "p1" "p3" "U"], ',');
   rollfile = open("$(pargs["prefix"])_rolling.csv", "w");
-  writedlm(rollfile, ["step" "r1" "r2" "r3" "r1sq" "r2sq" "r3sq" "rsq" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psq" "U" "Usq"], ',');
+  writedlm(rollfile, ["step" "r1" "r3" "r1sq" "r3sq" "rsq" "p1" "p3" "p1sq" "p3sq" "psq" "U" "Usq"], ',');
 
   start = time();
   last_update = start;
@@ -230,9 +225,8 @@ function mcmc(nsteps::Int, pargs)
   for step=1:nsteps
     idx = rand(1:n(chain));
     dϕ = rand(dϕ_dist);
-    dθ = rand(dθ_dist);
     trial_chain = EAPChain(chain);
-    successful = move!(trial_chain, idx, dϕ, dθ);
+    successful = move!(trial_chain, idx, dϕ);
     α = cluster_flip!(trial_chain, idx; ϵflip = pargs["cluster-prob"]);
     if successful && acceptor(trial_chain, rand(); α = α)
       chain = trial_chain;
@@ -253,21 +247,18 @@ function mcmc(nsteps::Int, pargs)
        ) # adjust step size?
       ar = nacc / natt;
       if (ar > pargs["step-adjust-ub"] &&
-          ϕstep != π && θstep != π/2)
+          ϕstep != π)
         @info "acceptance ratio is high; increasing step size";
         nacc = 0;
         natt = 0;
         ϕstep = min(π, ϕstep*pargs["step-adjust-scale"]);
-        θstep = min(π/2, θstep*pargs["step-adjust-scale"]);
       elseif ar < pargs["step-adjust-lb"]
         @info "acceptance ratio is low; decreasing step size";
         nacc = 0;
         natt = 0;
         ϕstep /= pargs["step-adjust-scale"];
-        θstep /= pargs["step-adjust-scale"];
       end
       dϕ_dist = Uniform(-ϕstep, ϕstep);
-      dθ_dist = Uniform(-θstep, θstep);
     end
 
     foreach(a -> record!(a, chain), scalar_averagers);
@@ -305,6 +296,7 @@ function mcmc(nsteps::Int, pargs)
   return (scalar_averagers, vector_averagers, AR);
 end
 
+#=
 (sas, vas, ar) = if pargs["profile"]
   @info "Profiling the mcmc code...";
   mcmc(5, pargs); # run first to compile code
@@ -315,6 +307,8 @@ end
 else
   mcmc(pargs["num-steps"], pargs);
 end
+=#
+(sas, vas, ar) = mcmc(pargs["num-steps"], pargs);
 
 println("<r>    =   $(get_avg(vas[1]))");
 println("<r/nb> =   $(get_avg(vas[1]) / (pargs["mlen"]*pargs["num-monomers"]))");
