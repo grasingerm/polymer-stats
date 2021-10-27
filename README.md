@@ -6,9 +6,9 @@ As of now, chains consisting of polar monomers and dipole-dipole interactions (f
 
 ## Getting started
 This research code is written in the [julia language](https://julialang.org/).
-In the root directory, there is a script for installing package dependences:
+In the ``scripts`` directory, there is a script for installing package dependences:
     
-    julia install_dependencies.jl
+    julia scripts/install_dependencies.jl
     
 The main file for the mean-field theory simulations is ``mean_field.jl``.
 You can see options by running:
@@ -35,36 +35,38 @@ Documentation of this work is still in progress. However, I am very receptive to
 
 ## Citations
 There are a few papers associated with polymer-stats. 
-If you found this code useful for your research, please be kind enough to cite it, using the DOIs 10.1039/D0SM00845A and 10.1073/pnas.2102477, or the following BiBTeX entries:
+If you found this code useful for your research, please be kind enough to cite it, using the DOIs 10.1039/D0SM00845A, 10.1073/pnas.2102477 and 10.1016/j.jmps.2021.104658, or the following BiBTeX entries:
 
 
     @article{grasinger2020statistical,
-      title={Statistical mechanical analysis of the electromechanical coupling in an electrically-responsive polymer chain},
-      author={Grasinger, Matthew and Dayal, Kaushik},
-      journal={Soft Matter},
-      volume={16},
-      number={27},
-      pages={6265--6284},
-      year={2020},
-      publisher={Royal Society of Chemistry},
-      doi={10.1039/D0SM00845A}
+        title={Statistical mechanical analysis of the electromechanical coupling in an electrically-responsive polymer chain},
+        author={Grasinger, Matthew and Dayal, Kaushik},
+        journal={Soft Matter},
+        volume={16},
+        number={27},
+        pages={6265--6284},
+        year={2020},
+        publisher={Royal Society of Chemistry},
+        doi={10.1039/D0SM00845A}
     }
     
     @article {grasinger2021flexoelectricity,
-	  author = {Grasinger, Matthew and Mozaffari, Kosar and Sharma, Pradeep},
-	  title = {Flexoelectricity in soft elastomers and the molecular mechanisms underpinning the design and emergence of giant flexoelectricity},
-	  volume = {118},
-	  number = {21},
-	  year = {2021},
-	  doi = {10.1073/pnas.2102477118},
-	  publisher = {National Academy of Sciences},
-	  issn = {0027-8424},
-	  journal = {Proceedings of the National Academy of Sciences}
+        author = {Grasinger, Matthew and Mozaffari, Kosar and Sharma, Pradeep},
+        title = {Flexoelectricity in soft elastomers and the molecular mechanisms underpinning the design and emergence of giant flexoelectricity},
+        volume = {118},
+        number = {21},
+        year = {2021},
+        doi = {10.1073/pnas.2102477118},
+        publisher = {National Academy of Sciences},
+        issn = {0027-8424},
+        journal = {Proceedings of the National Academy of Sciences}
     }
 
-    @phdthesis{grasinger2019multiscale,
-      title={Multiscale Modeling and Theoretical Design of Dielectric Elastomers},
-      author={Grasinger, Matthew},
-      year={2019},
-      school={Carnegie Mellon University}
+    @article{grasinger2021statistical,
+        title={Statistical mechanics of a dielectric polymer chain in the force ensemble},
+        author={Grasinger, Matthew and Dayal, Kaushik and deBotton, Gal and Purohit, Prashant K},
+        journal={Journal of the Mechanics and Physics of Solids},
+        pages={104658},
+        year={2021},
+        publisher={Elsevier}
     }
