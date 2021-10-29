@@ -213,12 +213,17 @@ function flip_n!(chain::EAPChain, idx::Int)
   move!(chain, idx, π, π - 2*chain.θs[idx])
 end
 
+function refl_n!(chain::EAPChain, idx::Int)
+  move!(chain, idx, 0, π - 2*chain.θs[idx])
+end
+
 pflip_linear(ip::Real) = (1 + ip) / 2;
 
 function cluster_flip!(chain::EAPChain, idx::Int; 
                        pflip::Function = pflip_linear,
                        ϵflip::Real = 1.0,
-                       ηerr::Real = 1e-10
+                       ηerr::Real = 1e-10,
+                       flip_f!::Function = refl_n!
                       )
   
   # grow the cluster to the right
@@ -258,7 +263,7 @@ function cluster_flip!(chain::EAPChain, idx::Int;
   if rand() <= ϵflip
     prev_n̂s = copy(chain.n̂s[:, lower_idx:upper_idx]);
     for i in lower_idx:upper_idx
-      flip_n!(chain, i);
+      flip_f!(chain, i);
     end
 
     if norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) > ηerr
