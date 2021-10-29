@@ -266,17 +266,6 @@ function cluster_flip!(chain::EAPChain, idx::Int;
       flip_f!(chain, i);
     end
 
-    if norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) > ηerr
-      println("prev");
-      display(prev_n̂s)
-      println();
-      println("curr");
-      display(chain.n̂s[:, lower_idx:upper_idx])
-      println();
-      @show(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf))
-    end
-    @assert(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) < ηerr);
-
     new_upper_p = if upper_idx < n(chain)
       pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
     else
