@@ -5,7 +5,6 @@ using ForwardDiff;
 include(joinpath(@__DIR__, "dipole_response.jl"));
 
 ϕ_dist = Uniform(0.0, 2*π);
-θ_dist = Uniform(0.0, π);
 
 # the way that the energy functions are organized is a mess; I'm sorry
 # also... not sorry
@@ -22,11 +21,7 @@ mutable struct EAPChain
   ϕs::FdVector;
   cϕs::FdVector;
   sϕs::FdVector;
-  θs::FdVector;
-  cθs::FdVector;
-  sθs::FdVector;
   n̂s::FdMatrix;
-  Ω::Float64;
   μs::FdMatrix;
   us::FdVector;
   xs::FdMatrix;
@@ -36,10 +31,9 @@ end
 
 @inline n(chain::EAPChain) = length(chain.ϕs);
 
-@inline n̂(cϕ, sϕ, cθ, sθ) = [cϕ * sθ; sϕ * sθ; cθ];
+@inline n̂(cϕ, sϕ) = [cϕ; sϕ];
 
-@inline n̂j(chain::EAPChain, idx::Int) = n̂(chain.cϕs[idx], chain.sϕs[idx],
-                                          chain.cθs[idx], chain.sθs[idx]);
+@inline n̂j(chain::EAPChain, idx::Int) = n̂(chain.cϕs[idx], chain.sϕs[idx]);
 
 function update_xs!(chain::EAPChain, idx::Int)
   @warn "This implementation of update_xs! is generally slower than the vectorized implementation";
@@ -68,16 +62,15 @@ function update_xs!(chain::EAPChain)
 end
 =#
 
-@inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[3];
+@inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[1];
 
 function EAPChain(pargs::Dict)
   ϕs = rand(ϕ_dist, pargs["num-monomers"]);
-  θs = rand(θ_dist, pargs["num-monomers"]);
 
   dr = if pargs["chain-type"] == "dielectric"
     DielectricResponse(pargs["K1"], pargs["K2"]);
   elseif pargs["chain-type"] == "polar"
-    PolarResponse(pargs["mu"] * [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]);
+    PolarResponse(pargs["mu"] * [1.0 0.0; 0.0 1.0]);
   else
     error("chain-type is not understood.");
   end
@@ -101,21 +94,16 @@ function EAPChain(pargs::Dict)
                   ϕs,
                   map(cos, ϕs),
                   map(sin, ϕs),
-                  θs,
-                  map(cos, θs),
-                  map(sin, θs),
-                  zeros(3, pargs["num-monomers"]),
-                  log(prod(map(sin, θs))), # store logarithm of solid angle instead
-                  zeros(3, pargs["num-monomers"]),
+                  zeros(2, pargs["num-monomers"]),
+                  zeros(2, pargs["num-monomers"]),
                   zeros(pargs["num-monomers"]),
-                  zeros(3, pargs["num-monomers"]),
-                  zeros(3),
+                  zeros(2, pargs["num-monomers"]),
+                  zeros(2),
                   0.0
                  );
   ret.n̂s[:, :] = hcat(map(j -> n̂j(ret, j), 1:n(ret))...);
   @simd for i=1:n(ret)
-    @inbounds ret.μs[:, i] = dr(ret.E0, ret.cϕs[i], ret.sϕs[i], 
-                                ret.cθs[i], ret.sθs[i]);
+    @inbounds ret.μs[:, i] = dr(ret.E0, ret.cϕs[i], ret.sϕs[i]);
   end
   ret.us[:] = map(i -> u(ret.E0, view(ret.μs, :, i)), 1:n(ret));
   update_xs!(ret);
@@ -136,11 +124,7 @@ function EAPChain(chain::EAPChain)
                   chain.ϕs[:],
                   chain.cϕs[:],
                   chain.sϕs[:],
-                  chain.θs[:],
-                  chain.cθs[:],
-                  chain.sθs[:],
                   chain.n̂s[:, :],
-                  chain.Ω,
                   chain.μs[:, :],
                   chain.us[:],
                   chain.xs[:, :],
@@ -185,22 +169,15 @@ function U_Ising(chain::EAPChain)
   return U;
 end
 
-function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
+function move!(chain::EAPChain, idx::Int, dϕ::Real)
   @inbounds begin
     chain.ϕs[idx] += dϕ;
     chain.cϕs[idx] = cos(chain.ϕs[idx]);
     chain.sϕs[idx] = sin(chain.ϕs[idx]);
 
-    chain.θs[idx] = min(π, max(0.0, chain.θs[idx]+dθ));
-    sθ = sin(chain.θs[idx]);
-    chain.Ω += log(sθ / chain.sθs[idx]); # update solid angle
-    chain.cθs[idx] = cos(chain.θs[idx]);
-    chain.sθs[idx] = sθ;
-
     # the order of these updates is important
     chain.n̂s[:, idx] = n̂j(chain, idx);
-    chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx], 
-                               chain.cθs[idx], chain.sθs[idx]);
+    chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx]);
     chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
     update_xs!(chain);
     chain.r[:] = end_to_end(chain);
@@ -210,11 +187,7 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
 end
 
 function flip_n!(chain::EAPChain, idx::Int)
-  move!(chain, idx, π, π - 2*chain.θs[idx])
-end
-
-function refl_n!(chain::EAPChain, idx::Int)
-  move!(chain, idx, 0, π - 2*chain.θs[idx])
+  move!(chain, idx, π)
 end
 
 pflip_linear(ip::Real) = (1 + ip) / 2;
@@ -222,8 +195,7 @@ pflip_linear(ip::Real) = (1 + ip) / 2;
 function cluster_flip!(chain::EAPChain, idx::Int; 
                        pflip::Function = pflip_linear,
                        ϵflip::Real = 1.0,
-                       ηerr::Real = 1e-10,
-                       flip_f!::Function = refl_n!
+                       ηerr::Real = 1e-10
                       )
   
   # grow the cluster to the right
@@ -263,8 +235,19 @@ function cluster_flip!(chain::EAPChain, idx::Int;
   if rand() <= ϵflip
     prev_n̂s = copy(chain.n̂s[:, lower_idx:upper_idx]);
     for i in lower_idx:upper_idx
-      flip_f!(chain, i);
+      flip_n!(chain, i);
     end
+
+    if norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) > ηerr
+      println("prev");
+      display(prev_n̂s)
+      println();
+      println("curr");
+      display(chain.n̂s[:, lower_idx:upper_idx])
+      println();
+      @show(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf))
+    end
+    @assert(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) < ηerr);
 
     new_upper_p = if upper_idx < n(chain)
       pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
@@ -286,93 +269,10 @@ function cluster_flip!(chain::EAPChain, idx::Int;
 
 end
 
-function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real, r0::AbstractVector;
-               frac_mv::Real = 0.15, acc_tol::Real = 1e-1)
-
-  @assert(frac_mv > 0.0 && frac_mv <= 1.0, 
-          "Fraction of chain to move must be between 0.0 and 1.0");
-
-  L0 = chain.b * n(chain);
-  
-  trial_idxs = if (idx / n(chain)) >= (1 - frac_mv)
-    max(1, round(Int, (1 - frac_mv)*n(chain))):n(chain);
-  elseif (idx / n(chain)) <= frac_mv
-    1:(min(n(chain), round(Int, frac_mv*n(chain))));
-  else
-    (max(1, round(Int, idx - frac_mv*n(chain)/2.0))):round(Int, idx + frac_mv*n(chain)/2.0)
-  end
-
-  r1 = chain.b * ([
-                   sum(chain.cϕs[trial_idxs] .* chain.sθs[trial_idxs]);
-                   sum(chain.sϕs[trial_idxs] .* chain.sθs[trial_idxs]);
-                   sum(chain.cθs[trial_idxs])
-                  ]);
-
-  # internal lambda function for solving nonlinear system
-  f! = (F::Vector, x::Vector) -> begin;
-    n = convert(Int, length(x) / 2);
-    cϕs = map(cos, x[1:n]);
-    sϕs = map(sin, x[1:n]);
-    sθs = map(sin, x[(n+1):(2*n)]);
-    F[1] = chain.b * sum(cϕs .* sθs) - r1[1];
-    F[2] = chain.b * sum(sϕs .* sθs) - r1[2];
-    F[3] = chain.b * sum(map(cos, x[(n+1):(2*n)])) - r1[3];
-  end
-
-  #=
-  j! = (J::Matrix, x::Vector) -> begin;
-    n = convert(Int, length(x) / 2);
-    cϕs = map(cos, x[1:n]);
-    sϕs = map(sin, x[1:n]);
-    cθs = map(cos, x[(n+1):(2*n)]);
-    sθs = map(sin, x[(n+1):(2*n)]);
-    J[:, :] = chain.b * hcat(map(i -> [cϕs[i]*cθs[i] -sϕs[i]*sθs[i];
-                                       sϕs[i]*cθs[i]  cϕs[i]*sθs[i];
-                                       -sθs[i]        0.0;], 1:n)...);
-  end
-  =#
-
-  # trial move initial guess
-  x0 = vcat(chain.ϕs[trial_idxs], chain.θs[trial_idxs]);
-  local_idx = findnext(i -> i==idx, collect(trial_idxs), 1);
-  x0[local_idx] += dϕ;
-  x0[2*local_idx] += dθ;
-
-  # solve nonlinear system to ensure end to end vector constrain is satisfied
-  result = nlsolve(f!, x0);
-  if result.residual_norm / L0 > acc_tol
-    @warn "residual norm is high", result.residual_norm / L0;
-    return false;
-  end
-
-  # update chain based on result
-  m = length(trial_idxs);
-  chain.ϕs[trial_idxs] = result.zero[1:m];
-  chain.θs[trial_idxs] = result.zero[(m+1):(2*m)];
-  chain.cϕs[trial_idxs] = map(cos, chain.ϕs[trial_idxs]);
-  chain.sϕs[trial_idxs] = map(sin, chain.ϕs[trial_idxs]);
-  chain.cθs[trial_idxs] = map(cos, chain.θs[trial_idxs]);
-  chain.sθs[trial_idxs] = map(sin, chain.θs[trial_idxs]);
-
-  # the order of these updates is important
-  chain.n̂s[:, trial_idxs] = hcat(map(idx -> n̂j(chain, idx), trial_idxs)...);
-  chain.μs[:, trial_idxs] = hcat(map(idx -> chain.μ(chain.E0, chain.cϕs[idx], 
-                                                    chain.sϕs[idx], chain.cθs[idx], 
-                                                    chain.sθs[idx]), 
-                                     trial_idxs)...);
-  chain.us[trial_idxs] = map(idx -> u(chain.E0, view(chain.μs, :, idx)), 
-                             trial_idxs);
-  update_xs!(chain);
-  chain.r[:] = end_to_end(chain);
-  chain.U = U(chain);
-  
-  return true;
-end
-
 @inline end_to_end(chain::EAPChain) = @inbounds (chain.xs[:, end] + 
                                                  chain.b/2.0*n̂j(chain, n(chain)));
 
-@inline chain_μ(chain::EAPChain) = reshape(sum(chain.μs, dims=2), 3);
+@inline chain_μ(chain::EAPChain) = reshape(sum(chain.μs, dims=2), 2);
 
 include(joinpath(@__DIR__, "energy.jl"));
 @inline U(chain::EAPChain) = chain.UFunction(chain); # forward energy call to chain

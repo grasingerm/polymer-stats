@@ -1,5 +1,5 @@
-@inline function metropolis_acc(kT::Real, dU::Real, sθa::Real, sθb::Real, ϵ::Real)
-  return ϵ <= (exp(-dU / kT) * sθb / sθa);
+@inline function metropolis_acc(kT::Real, dU::Real, ϵ::Real)
+  return ϵ <= (exp(-dU / kT));
 end
   
 function kawasaki_acc(kT::Real, dU::Real, ϵ::Real)
@@ -15,10 +15,10 @@ mutable struct Metropolis <: Acceptor
   weight_function::WeightFunction;
 end
 
-logπ_chain(chain::EAPChain) = -chain.U / chain.kT + chain.Ω;
+logπ_chain(chain::EAPChain) = -chain.U / chain.kT;
 
 function logπ_chain(chain::EAPChain, log_wf::WeightFunction)
-  return -chain.U / chain.kT + chain.Ω + log_wf(chain);
+  return -chain.U / chain.kT + log_wf(chain);
 end
 
 function Metropolis(chain::EAPChain, wf::WeightFunction)
