@@ -7,6 +7,7 @@ println("Hello world!");
 else
   ".";
 end
+mkpath(workdir);
 
 @everywhere fmt(x) = @sprintf("%07d", round(Int, 1e3*x));
 @everywhere fmt_int(x) = @sprintf("%03d", x);
@@ -37,7 +38,7 @@ pmap(case -> begin;
   outfile = joinpath(workdir, "$(prefix(case)).out");
   if !isfile(outfile)
     println("Running case: $case.");
-    command = `julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type interacting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 250000 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
+    command = `/home/mgrasing/julia-1.6.1/bin/julia -O 3 mcmc_eap_chain.jl --chain-type dielectric --energy-type interacting -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 500000 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
     output = read(command, String);
     write(outfile, output); 
   else

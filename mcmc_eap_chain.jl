@@ -3,7 +3,7 @@ using Distributions;
 using LinearAlgebra;
 using Logging;
 using DelimitedFiles;
-using ProfileView;
+#using ProfileView;
 using DecFP;
 using Quadmath;
 
@@ -363,11 +363,7 @@ function mcmc(nsteps::Int, pargs)
 end
 
 (sas, vas, ar) = if pargs["profile"]
-  @info "Profiling the mcmc code...";
-  mcmc(5, pargs); # run first to compile code
-  @profview mcmc(pargs["num-steps"], pargs);
-  println("Press ENTER to continue...");
-  readline(stdin);
+  error("not implemented for the HPC env");
   exit(1);
 else
   mcmc(pargs["num-steps"], pargs);
