@@ -6,7 +6,7 @@ using Logging;
 using Printf;
 
 if length(ARGS) != 2
-  println("usage: julia statistical_analysis_mcmc.jl <indir> <subpattern>");
+  println("usage: julia compare_mcmc.jl <indir> <subpattern>");
   exit(1);
 end
 
