@@ -3,7 +3,7 @@ using Distributions;
 using LinearAlgebra;
 using Logging;
 using DelimitedFiles;
-#using ProfileView;
+using ProfileView;
 using DecFP;
 using Quadmath;
 
@@ -36,7 +36,7 @@ s = ArgParseSettings();
   "--energy-type", "-u"
     help = "energy type (noninteracting|interacting|Ising)"
     arg_type = String
-    default = "noninteracting"
+    default = "Ising"
   "--kT", "-k"
     help = "dimensionless temperature"
     arg_type = Float64
@@ -119,6 +119,10 @@ s = ArgParseSettings();
     help = "numerical data type for averaging (float64|float128|dec128|big)"
     arg_type = String
     default = "float64"
+  "--burn-in"
+    help = "steps for burn-in; i.e. steps before averaging"
+    arg_type = Int
+    default = 50000
   "--profile", "-Z"
     help = "profile the program"
     action = :store_true
@@ -137,10 +141,14 @@ else
 end
 
 function mcmc(nsteps::Int, pargs)
+  chain = EAPChain(pargs);
+  return mcmc(nsteps, pargs, chain);
+end
+
+function mcmc(nsteps::Int, pargs, chain::EAPChain)
   ϕstep, θstep = pargs["phi-step"], pargs["theta-step"];
   dϕ_dist = Uniform(-ϕstep, ϕstep);
   dθ_dist = Uniform(-θstep, θstep);
-  chain = EAPChain(pargs);
   chain.U = U(chain);
   wf = AntiDipoleWeightFunction(chain);
   acceptor = Metropolis(
@@ -302,10 +310,14 @@ function mcmc(nsteps::Int, pargs)
   close(outfile);
   close(rollfile);
 
-  return (scalar_averagers, vector_averagers, AR);
+  # save adjusted step size
+  pargs["phi-step"] = ϕstep;
+  pargs["theta-step"] = θstep;
+
+  return (chain, scalar_averagers, vector_averagers, AR);
 end
 
-(sas, vas, ar) = if pargs["profile"]
+(chain, sas, vas, ar) = if pargs["profile"]
   @info "Profiling the mcmc code...";
   mcmc(5, pargs); # run first to compile code
   @profview mcmc(pargs["num-steps"], pargs);
@@ -313,7 +325,8 @@ end
   readline(stdin);
   exit(1);
 else
-  mcmc(pargs["num-steps"], pargs);
+  burned_in_chain = mcmc(pargs["burn-in"], pargs)[1];
+  mcmc(pargs["num-steps"], pargs, burned_in_chain);
 end
 
 println("<r>    =   $(get_avg(vas[1]))");
