@@ -8,11 +8,12 @@ include(joinpath(@__DIR__, "dipole_response.jl"));
 θ_dist = Uniform(0.0, π);
 
 # the way that the energy functions are organized is a mess; I'm sorry
-# also... not sorry
 abstract type Energy end
 
 mutable struct EAPChain
   b::Float64;
+  κ::Float64;
+  ψ0::Float64;
   E0::Float64;
   μ::DipoleResponse;
   UFunction::Energy;
@@ -26,6 +27,7 @@ mutable struct EAPChain
   cθs::FdVector;
   sθs::FdVector;
   n̂s::FdMatrix;
+  ψs::FdVector;
   Ω::Float64;
   μs::FdMatrix;
   us::FdVector;
@@ -41,34 +43,20 @@ end
 @inline n̂j(chain::EAPChain, idx::Int) = n̂(chain.cϕs[idx], chain.sϕs[idx],
                                           chain.cθs[idx], chain.sθs[idx]);
 
-function update_xs!(chain::EAPChain, idx::Int)
-  @warn "This implementation of update_xs! is generally slower than the vectorized implementation";
-  if idx == 1
-    @inbounds chain.xs[:, idx] = chain.b / 2 * n̂j(chain, idx);
-    idx += 1;
-  end
-  for i=idx:n(chain)
-    @inbounds chain.xs[:, i] = (chain.xs[:, i-1] + 
-                                chain.b / 2 * (n̂j(chain, i) + n̂j(chain, i-1))); 
-  end
+function ψj(chain::EAPChain, idx::Int)
+  acos(dot(view(chain.n̂s, :, idx), view(chain.n̂s, :, idx+1)));
 end
 
 @inline function update_xs!(chain::EAPChain)
   chain.xs[:, :] = chain.b*(cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
 end
 
-#=
-function update_xs!(chain::EAPChain)
-  @show chain.n̂s
-  @show cumsum(chain.n̂s, dims=2);
-  @show (cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
-  idx = rand(1:n(chain));
-  @assert(dot(chain.n̂s[:, idx], chain.n̂s[:, idx]) ≈ 1.0);
-  chain.xs[:, :] = chain.b*(cumsum(chain.n̂s, dims=2) - 0.5*chain.n̂s);
-end
-=#
-
 @inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[3];
+ubend(chain::EAPChain, idx::Int) = if idx != n(chain)
+  chain.κ/2 * (chain.ψs[idx] - chain.ψ0)^2;
+else
+  0.0
+end
 
 function EAPChain(pargs::Dict)
   ϕs = rand(ϕ_dist, pargs["num-monomers"]);
@@ -84,6 +72,8 @@ function EAPChain(pargs::Dict)
 
   ret =  EAPChain(
                   pargs["mlen"],
+                  pargs["bend-mod"],
+                  pargs["bend-angle"],
                   pargs["E0"],
                   dr,
                   if pargs["energy-type"] == "noninteracting"
@@ -105,6 +95,7 @@ function EAPChain(pargs::Dict)
                   map(cos, θs),
                   map(sin, θs),
                   zeros(3, pargs["num-monomers"]),
+                  zeros(pargs["num-monomers"]-1),
                   log(prod(map(sin, θs))), # store logarithm of solid angle instead
                   zeros(3, pargs["num-monomers"]),
                   zeros(pargs["num-monomers"]),
@@ -113,11 +104,12 @@ function EAPChain(pargs::Dict)
                   0.0
                  );
   ret.n̂s[:, :] = hcat(map(j -> n̂j(ret, j), 1:n(ret))...);
+  ret.ψs[:] = map(j -> ψj(ret, j), 1:(n(ret)-1));
   @simd for i=1:n(ret)
     @inbounds ret.μs[:, i] = dr(ret.E0, ret.cϕs[i], ret.sϕs[i], 
                                 ret.cθs[i], ret.sθs[i]);
   end
-  ret.us[:] = map(i -> u(ret.E0, view(ret.μs, :, i)), 1:n(ret));
+  ret.us[:] = map(i -> u(ret.E0, view(ret.μs, :, i)) + ubend(ret, i), 1:n(ret));
   update_xs!(ret);
   ret.r[:] = end_to_end(ret);
   ret.U = U(ret);
@@ -127,6 +119,8 @@ end
 function EAPChain(chain::EAPChain)
   return EAPChain(
                   chain.b,
+                  chain.κ,
+                  chain.ψ0,
                   chain.E0,
                   chain.μ,
                   chain.UFunction,
@@ -140,6 +134,7 @@ function EAPChain(chain::EAPChain)
                   chain.cθs[:],
                   chain.sθs[:],
                   chain.n̂s[:, :],
+                  chain.ψs[:],
                   chain.Ω,
                   chain.μs[:, :],
                   chain.us[:],
@@ -201,7 +196,12 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real)
     chain.n̂s[:, idx] = n̂j(chain, idx);
     chain.μs[:, idx] = chain.μ(chain.E0, chain.cϕs[idx], chain.sϕs[idx], 
                                chain.cθs[idx], chain.sθs[idx]);
-    chain.us[idx] = u(chain.E0, view(chain.μs, :, idx));
+    if idx < n(chain); chain.ψs[idx] = ψj(chain, idx); end
+    if idx > 1; 
+      chain.ψs[idx-1] = ψj(chain, idx-1); 
+      chain.us[idx-1] = u(chain.E0, view(chain.μs, :, idx-1)) + ubend(chain, idx-1);
+    end
+    chain.us[idx] = u(chain.E0, view(chain.μs, :, idx)) + ubend(chain, idx);
     update_xs!(chain);
     chain.r[:] = end_to_end(chain);
     chain.U = U(chain);
@@ -226,6 +226,8 @@ function cluster_flip!(chain::EAPChain, idx::Int;
                        flip_f!::Function = refl_n!
                       )
   
+  if rand() <= ϵflip; return 1.0; end
+
   # grow the cluster to the right
   upper_p = NaN;
   upper_idx = idx;
@@ -260,29 +262,26 @@ function cluster_flip!(chain::EAPChain, idx::Int;
   end
   @assert(!isnan(lower_p) && lower_idx >= 1);
 
-  if rand() <= ϵflip
-    prev_n̂s = copy(chain.n̂s[:, lower_idx:upper_idx]);
-    for i in lower_idx:upper_idx
-      flip_f!(chain, i);
-    end
-
-    new_upper_p = if upper_idx < n(chain)
-      pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
-    else
-      0
-    end
-    new_lower_p = if lower_idx > 1
-      pflip_linear(dot(n̂j(chain, lower_idx), n̂j(chain, lower_idx-1)));
-    else
-      0
-    end
-    return ( 
-             ((1 - new_upper_p)*(1 - new_lower_p)) /
-             ((1 - upper_p)*(1 - lower_p))
-            );
-  else
-    return 1.0;
+  # execute cluster flip
+  prev_n̂s = copy(chain.n̂s[:, lower_idx:upper_idx]);
+  for i in lower_idx:upper_idx
+    flip_f!(chain, i);
   end
+
+  new_upper_p = if upper_idx < n(chain)
+    pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
+  else
+    0
+  end
+  new_lower_p = if lower_idx > 1
+    pflip_linear(dot(n̂j(chain, lower_idx), n̂j(chain, lower_idx-1)));
+  else
+    0
+  end
+  return ( 
+           ((1 - new_upper_p)*(1 - new_lower_p)) /
+           ((1 - upper_p)*(1 - lower_p))
+          );
 
 end
 
@@ -318,19 +317,6 @@ function move!(chain::EAPChain, idx::Int, dϕ::Real, dθ::Real, r0::AbstractVect
     F[2] = chain.b * sum(sϕs .* sθs) - r1[2];
     F[3] = chain.b * sum(map(cos, x[(n+1):(2*n)])) - r1[3];
   end
-
-  #=
-  j! = (J::Matrix, x::Vector) -> begin;
-    n = convert(Int, length(x) / 2);
-    cϕs = map(cos, x[1:n]);
-    sϕs = map(sin, x[1:n]);
-    cθs = map(cos, x[(n+1):(2*n)]);
-    sθs = map(sin, x[(n+1):(2*n)]);
-    J[:, :] = chain.b * hcat(map(i -> [cϕs[i]*cθs[i] -sϕs[i]*sθs[i];
-                                       sϕs[i]*cθs[i]  cϕs[i]*sθs[i];
-                                       -sθs[i]        0.0;], 1:n)...);
-  end
-  =#
 
   # trial move initial guess
   x0 = vcat(chain.ϕs[trial_idxs], chain.θs[trial_idxs]);

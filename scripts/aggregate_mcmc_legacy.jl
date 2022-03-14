@@ -27,15 +27,15 @@ pattern = Glob.GlobMatch(ARGS[3]);
 
 if ARGS[4] == "dielectric"
   if dims == 3
-    writedlm(outfile, ["E0" "K1" "K2" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "r3" "lambda1" "lambda2" "lambda3" "r1sq" "r2sq" "r3sq" "rsquared" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"], ',');
+    writedlm(outfile, ["E0" "K1" "K2" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "r3" "lambda1" "lambda2" "lambda3" "r1sq" "r2sq" "r3sq" "rsquared" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psquared" "U" "Usquared" "AR"], ',');
   else
-    writedlm(outfile, ["E0" "K1" "K2" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"], ',');
+    writedlm(outfile, ["E0" "K1" "K2" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "AR"], ',');
   end
 elseif ARGS[4] == "polar"
   if dims == 3
-    writedlm(outfile, ["E0" "mu" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "r3" "lambda1" "lambda2" "lambda3" "r1sq" "r2sq" "r3sq" "rsquared" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"], ',');
+    writedlm(outfile, ["E0" "mu" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "r3" "lambda1" "lambda2" "lambda3" "r1sq" "r2sq" "r3sq" "rsquared" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psquared" "U" "Usquared" "AR"], ',');
   else
-    writedlm(outfile, ["E0" "mu" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"], ',');
+    writedlm(outfile, ["E0" "mu" "kT" "Fz" "Fx" "n" "b" "r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "AR"], ',');
   end
 else
   println("I don't understand the second to last argument");

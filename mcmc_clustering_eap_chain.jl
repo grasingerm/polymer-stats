@@ -33,6 +33,14 @@ s = ArgParseSettings();
     arg_type = Float64
     default = 1e-2
     help = "dipole magnitude (electret chain)"
+  "--bend-mod", "-a"
+    arg_type = Float64
+    default = 0.0
+    help = "dipole magnitude (electret chain)"
+  "--bend-angle", "-g"
+    arg_type = Float64
+    default = 0.0
+    help = "dipole magnitude (electret chain)"
   "--energy-type", "-u"
     help = "energy type (noninteracting|interacting|Ising)"
     arg_type = String
@@ -216,6 +224,8 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
                                 chain)),
                        (avgcons(chain -> chain.U, chain)),
                        (avgcons(chain -> chain.U*chain.U, chain)),
+                       (avgcons(chain -> sum(map(x -> x*x, chain.cθs)))),
+                       (avgcons(chain -> sum(chain.ψs) / (n(chain)-1)))
                       ]);
   vector_averagers = (Avg{Vector{numeric_type},numeric_type}[
                        avgconss(end_to_end, chain),
@@ -227,7 +237,7 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
   writedlm(outfile, ["step" "r1" "r2" "r3" "p1" "p2" "p3" "U"], ',');
   rollfile = open("$(pargs["prefix"])_rolling.csv", "w");
-  writedlm(rollfile, ["step" "r1" "r2" "r3" "r1sq" "r2sq" "r3sq" "rsq" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psq" "U" "Usq"], ',');
+  writedlm(rollfile, ["step" "r1" "r2" "r3" "r1sq" "r2sq" "r3sq" "rsq" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psq" "U" "Usq" "Ealign" "psi"], ',');
 
   start = time();
   last_update = start;
@@ -295,7 +305,9 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
                     transpose(get_avg(vector_averagers[4])), # pj2
                     get_avg(scalar_averagers[2]), # p2
                     get_avg(scalar_averagers[3]), # U
-                    get_avg(scalar_averagers[4])  # U2
+                    get_avg(scalar_averagers[4]),  # U2
+                    get_avg(scalar_averagers[5]), # Ealign
+                    get_avg(scalar_averagers[6])  # psi
                    ),
                ',');
 
@@ -338,4 +350,6 @@ println("<pj2>  =   $(get_avg(vas[4]))");
 println("<p2>   =   $(get_avg(sas[2]))");
 println("<U>    =   $(get_avg(sas[3]))");
 println("<U2>   =   $(get_avg(sas[4]))");
+println("<cos2(θ)>   =   $(get_avg(sas[5]))");
+println("<ψ>    =   $(get_avg(sas[6]))");
 println("AR     =   $ar");

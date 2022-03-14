@@ -12,23 +12,24 @@ end
 @everywhere fmt_int(x) = @sprintf("%03d", x);
 
 @everywhere function prefix(case)
-  "E0-$(fmt(case[:E0]))_K1-$(fmt(case[:K1]))_K2-$(fmt(case[:K2]))_kT-$(fmt(case[:kT]))_Fz-$(fmt(case[:Fz]))_Fx-$(fmt(case[:Fx]))_n-$(fmt(case[:n]))_b-$(fmt(case[:b]))";
+  "E0-$(fmt(case[:E0]))_K1-$(fmt(case[:K1]))_K2-$(fmt(case[:K2]))_kT-$(fmt(case[:kT]))_Fz-$(fmt(case[:Fz]))_Fx-$(fmt(case[:Fx]))_n-$(fmt(case[:n]))_b-$(fmt(case[:b]))_kappa-$(fmt(case[:kappa]))";
 end
 
 cases = Any[];
-E0s = [0.1; 0.5; 1.0; 2.0];
+E0s = [0.1; 0.5; 1.0; 2.0; 3.0];
+κs = [0.0; 0.1; 1.0];
 Ks = zip([1.0; 0.0; 2.0; 1.0], [0.0; 1.0; 1.0; 2.0]);
-Fs = vcat(0.05:0.05:1.0, 1.5:0.5:5.0, 10.0, 100.0);
+Fs = vcat(0.0, 0.05:0.05:1.0, 1.5:0.5:5.0, 10.0, 100.0);
 Fhats = [[1.0; 0.0], [0.0; 1.0], [1.0; 1.0]/sqrt(2)];
-ns = Int[100];
-bs = [1.0];
+ns = Int[100; 200];
+bs = [0.5; 1.0; 2.0];
 kT = 1.0;
-for b in bs, n in ns, Kvec in Ks, E0 in E0s, Fmag in Fs, Fhat in Fhats
+for b in bs, κ in κs, n in ns, Kvec in Ks, E0 in E0s, Fmag in Fs, Fhat in Fhats
   Fx, Fz = Fmag*Fhat;
   K1, K2 = Kvec;
   push!(cases, Dict(:E0 => E0, :K1 => K1, :K2 => K2,
-                    :kT => kT, :Fz => Fz,
-                    :Fx => Fx, :n => n, :b => b, :run => run));
+                    :kT => kT, :Fz => Fz, :kappa => κ,
+                    :Fx => Fx, :n => n, :b => b));
 end
 
 @info "total number of cases to run: $(length(cases))";
@@ -40,7 +41,7 @@ pmap(case -> begin;
   outfile = joinpath(workdir, "$(prefix(case)).out");
   if !isfile(outfile)
     println("Running case: $case.");
-    command = `/home/mgrasing/julia-1.6.1/bin/julia -O 3 mcmc_clustering_eap_chain.jl --chain-type dielectric --energy-type Ising -b $(case[:b]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 2000000 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
+    command = `julia -O 3 mcmc_clustering_eap_chain.jl --chain-type dielectric --energy-type Ising -b $(case[:b]) --bend-mod $(case[:kappa]) --E0 $(case[:E0]) --K1 $(case[:K1]) --K2 $(case[:K2]) --kT $(case[:kT]) --Fz $(case[:Fz]) --Fx $(case[:Fx]) -n $(case[:n]) --num-steps 2000000 -v 2 --prefix $(joinpath(workdir, prefix(case)))`;
     output = read(command, String);
     write(outfile, output); 
   else
