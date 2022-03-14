@@ -222,10 +222,10 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
                                              end_to_end(chain)), chain)),
                        (avgcons(chain -> dot(chain_μ(chain), chain_μ(chain)), 
                                 chain)),
-                       (avgcons(chain -> chain.U, chain)),
-                       (avgcons(chain -> chain.U*chain.U, chain)),
-                       (avgcons(chain -> sum(map(x -> x*x, chain.cθs)))),
-                       (avgcons(chain -> sum(chain.ψs) / (n(chain)-1)))
+                       avgcons(chain -> chain.U, chain),
+                       avgcons(chain -> chain.U*chain.U, chain),
+                       avgcons(chain -> sum(map(x -> x*x, chain.cθs)), chain),
+                       avgcons(chain -> sum(chain.ψs) / (n(chain)-1), chain)
                       ]);
   vector_averagers = (Avg{Vector{numeric_type},numeric_type}[
                        avgconss(end_to_end, chain),
