@@ -16,20 +16,17 @@ end
 end
 
 cases = Any[];
-E0s = [0.1; 0.5; 1.0; 2.0; 3.0];
 κs = [0.0; 0.1; 1.0];
 Ks = zip([1.0; 0.0; 2.0; 1.0], [0.0; 1.0; 1.0; 2.0]);
-Fs = vcat(0.0, 0.05:0.05:1.0, 1.5:0.5:5.0, 10.0, 100.0);
-Fhats = [[1.0; 0.0], [0.0; 1.0], [1.0; 1.0]/sqrt(2)];
+E0s = vcat(0.0, 0.05:0.05:1.0, 1.5:0.5:5.0, 10.0, 25.0);
 ns = Int[100; 200];
 bs = [0.5; 1.0; 2.0];
-kT = 1.0;
-for b in bs, κ in κs, n in ns, Kvec in Ks, E0 in E0s, Fmag in Fs, Fhat in Fhats
-  Fx, Fz = Fmag*Fhat;
+kTs = [0.1; 1.0; 10.0];
+for b in bs, κ in κs, n in ns, Kvec in Ks, E0 in E0s, kT in kTs
   K1, K2 = Kvec;
   push!(cases, Dict(:E0 => E0, :K1 => K1, :K2 => K2,
-                    :kT => kT, :Fz => Fz, :kappa => κ,
-                    :Fx => Fx, :n => n, :b => b));
+                    :kT => kT, :Fz => 0.0, :kappa => κ,
+                    :Fx => 0.0, :n => n, :b => b));
 end
 
 @info "total number of cases to run: $(length(cases))";

@@ -44,7 +44,7 @@ end
                                           chain.cθs[idx], chain.sθs[idx]);
 
 function ψj(chain::EAPChain, idx::Int)
-  acos(dot(view(chain.n̂s, :, idx), view(chain.n̂s, :, idx+1)));
+  acos(min(1, max(-1, dot(view(chain.n̂s, :, idx), view(chain.n̂s, :, idx+1)))));
 end
 
 @inline function update_xs!(chain::EAPChain)
