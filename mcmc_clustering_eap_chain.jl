@@ -36,11 +36,11 @@ s = ArgParseSettings();
   "--bend-mod", "-a"
     arg_type = Float64
     default = 0.0
-    help = "dipole magnitude (electret chain)"
+    help = "bending modulus of chain"
   "--bend-angle", "-g"
     arg_type = Float64
     default = 0.0
-    help = "dipole magnitude (electret chain)"
+    help = "zero energy bond angle"
   "--energy-type", "-u"
     help = "energy type (noninteracting|interacting|Ising)"
     arg_type = String
