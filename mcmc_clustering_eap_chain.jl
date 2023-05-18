@@ -42,9 +42,13 @@ s = ArgParseSettings();
     default = 0.0
     help = "zero energy bond angle"
   "--energy-type", "-u"
-    help = "energy type (noninteracting|interacting|Ising)"
+    help = "energy type (interacting|cutoff|Ising|noninteracting)"
     arg_type = String
     default = "Ising"
+  "--cutoff-radius"
+    help = "cut off radius (units of monomer lengths)"
+    arg_type = Float64
+    default = 7.5
   "--kT", "-k"
     help = "dimensionless temperature"
     arg_type = Float64
