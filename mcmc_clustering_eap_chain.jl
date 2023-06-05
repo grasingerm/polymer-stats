@@ -3,7 +3,7 @@ using Distributions;
 using LinearAlgebra;
 using Logging;
 using DelimitedFiles;
-using ProfileView;
+#using ProfileView;
 using DecFP;
 using Quadmath;
 
@@ -332,7 +332,8 @@ end
 (chain, sas, vas, ar) = if pargs["profile"]
   @info "Profiling the mcmc code...";
   mcmc(5, pargs); # run first to compile code
-  @profview mcmc(pargs["num-steps"], pargs);
+  #@profview mcmc(pargs["num-steps"], pargs);
+  error("Not currently implemented...");
   println("Press ENTER to continue...");
   readline(stdin);
   exit(1);
