@@ -82,6 +82,8 @@ function EAPChain(pargs::Dict)
                     InteractingEnergy();
                   elseif pargs["energy-type"] == "Ising"
                     IsingEnergy();
+                  elseif pargs["energy-type"] == "cutoff"
+                    UCutoff(pargs["cutoff-radius"]*pargs["mlen"])
                   else
                     error("energy-type is not understood.");
                   end,
@@ -142,6 +144,35 @@ function EAPChain(chain::EAPChain)
                   chain.r[:],
                   chain.U
                  );
+end
+
+struct UCutoff <: Energy
+    cutoff_radius::Real;
+end
+
+# TODO: consider rewriting this to make better use of past calculations
+# this is probably by far the slowest calculation *shrug emoji*
+function (U_func::UCutoff)(chain::EAPChain)
+  crad2 = U_func.cutoff_radius * U_func.cutoff_radius;
+  U = 0.0;
+  @inbounds for i=1:n(chain)
+    @simd for j=i+1:n(chain) # once debugged, use inbounds
+      r = chain.xs[:, i] - chain.xs[:, j];
+      r2 = dot(r, r);
+      dU = if (r2 > crad2)
+          0.0
+      else
+          rmag = sqrt(r2);
+          r̂ = r / rmag;
+          r3 = r2*rmag;
+          μi = view(chain.μs, :, i);
+          μj = view(chain.μs, :, j);
+          (dot(μi, μj) - 3*dot(μi, r̂)*dot(μj, r̂)) / (4*π*r3);
+      end
+      U += dU;
+    end
+  end
+  return U;
 end
 
 # TODO: consider rewriting this to make better use of past calculations
