@@ -239,7 +239,10 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
                       ]);
 
   outfile = open("$(pargs["prefix"])_trajectory.csv", "w");
-  writedlm(outfile, ["step" "r1" "r2" "r3" "p1" "p2" "p3" "U"], ',');
+  writedlm(outfile, hcat(["step" "r1" "r2" "r3" "p1" "p2" "p3" "U"], 
+                         reshape(vcat(reshape(["phi$i" for i=1:n(chain)], 1, :), reshape(["theta$i" for i=1:n(chain)], 1, :)), 1, :), 
+                         reshape(vcat(reshape(["mux$i" for i=1:n(chain)], 1, :), reshape(["muy$i" for i=1:n(chain)], 1, :), reshape(["muz$i" for i=1:n(chain)], 1, :)), 1, :)), 
+           ',');
   rollfile = open("$(pargs["prefix"])_rolling.csv", "w");
   writedlm(rollfile, ["step" "r1" "r2" "r3" "r1sq" "r2sq" "r3sq" "rsq" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psq" "U" "Usq" "Ealign" "psi"], ',');
 
@@ -297,7 +300,10 @@ function mcmc(nsteps::Int, pargs, chain::EAPChain)
     if step % pargs["stepout"] == 0
       writedlm(outfile, 
                hcat(step, transpose(chain.r), 
-                    transpose(chain_μ(chain)), chain.U), 
+                    transpose(chain_μ(chain)), chain.U, 
+                    reshape(vcat(transpose(chain.ϕs), transpose(chain.θs)), 1, :),
+                    reshape(chain.μs, 1, :)
+                   ), 
                ',');
       writedlm(rollfile, 
                hcat(
@@ -338,9 +344,11 @@ end
   mcmc(5, pargs); # run first to compile code
   #@profview mcmc(pargs["num-steps"], pargs);
   error("Not currently implemented...");
+  #=
   println("Press ENTER to continue...");
   readline(stdin);
   exit(1);
+  =#
 else
   burned_in_chain = mcmc(pargs["burn-in"], pargs)[1];
   mcmc(pargs["num-steps"], pargs, burned_in_chain);
