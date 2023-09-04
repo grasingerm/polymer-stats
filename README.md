@@ -1,4 +1,6 @@
 # polymer-stats
+[![DOI](https://zenodo.org/badge/260955234.svg)](https://zenodo.org/badge/latestdoi/260955234)
+
 Numerical modelling of the electroelasticity of polymer chains consisting of dielectric monomers and polar monomers.
 Chains consisting of dielectric monomers can be simulated in either the fixed end-to-end vector (`mean_field.jl`) or fixed force ensembles (`mcmc_eap_chain.jl`).
 The fixed end-to-end vector ensemble is simulated using mean-field theory and numerical integration; whereas the fixed force ensemble is simulated using the Markov chain Monte Carlo method.
