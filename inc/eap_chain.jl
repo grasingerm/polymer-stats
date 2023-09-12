@@ -59,8 +59,22 @@ else
 end
 
 function EAPChain(pargs::Dict)
-  ϕs = rand(ϕ_dist, pargs["num-monomers"]);
-  θs = rand(θ_dist, pargs["num-monomers"]);
+  ϕs, θs = if isnothing(pargs["x0"])
+    rand(ϕ_dist, pargs["num-monomers"]), rand(θ_dist, pargs["num-monomers"]);
+  else
+    x0 = eval(Meta.parse(pargs["x0"]))
+    if !(typeof(x0) <: Vector)
+        error("Invalid input for 'x0', $(pargs["x0"])")
+    end
+    if length(x0) == 2
+        ϕ, θ = x0
+        fill(ϕ, pargs["num-monomers"]), fill(θ, pargs["num-monomers"])
+    elseif length(x0) == 2*pargs["num-monomers"]
+        x0[1:2:end], x0[2:2:end]
+    else
+        error("Invalid input for 'x0', $(pargs["x0"])")
+    end
+  end
 
   dr = if pargs["chain-type"] == "dielectric"
     DielectricResponse(pargs["K1"], pargs["K2"]);

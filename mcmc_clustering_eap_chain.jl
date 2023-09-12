@@ -135,6 +135,9 @@ s = ArgParseSettings();
     help = "steps for burn-in; i.e. steps before averaging"
     arg_type = Int
     default = 50000
+  "--x0"
+    help = "initial configuration"
+    arg_type = String
   "--profile", "-Z"
     help = "profile the program"
     action = :store_true
