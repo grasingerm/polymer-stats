@@ -138,6 +138,10 @@ s = ArgParseSettings();
   "--x0"
     help = "initial configuration"
     arg_type = String
+  "--dx0"
+    help = "random perturbation of x0"
+    arg_type = String
+    default = "[2*pi, 1e-1]";
   "--profile", "-Z"
     help = "profile the program"
     action = :store_true

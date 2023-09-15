@@ -59,18 +59,21 @@ else
 end
 
 function EAPChain(pargs::Dict)
-  ϕs, θs = if isnothing(pargs["x0"])
+  @show ϕs, θs = if isnothing(pargs["x0"])
     rand(ϕ_dist, pargs["num-monomers"]), rand(θ_dist, pargs["num-monomers"]);
   else
     x0 = eval(Meta.parse(pargs["x0"]))
-    if !(typeof(x0) <: Vector)
-        error("Invalid input for 'x0', $(pargs["x0"])")
+    dx0 = eval(Meta.parse(pargs["dx0"]))
+    if !(typeof(x0) <: Vector || typeof(dx0) <: Vector )
+        error("Invalid input for 'x0' and/or 'dx0', $(pargs["x0"]); $(pargs["dx0"])")
     end
     if length(x0) == 2
         ϕ, θ = x0
-        fill(ϕ, pargs["num-monomers"]), fill(θ, pargs["num-monomers"])
+        (fill(ϕ, pargs["num-monomers"]) + rand(Uniform(0.0, dx0[1]), pargs["num-monomers"]), 
+         fill(θ, pargs["num-monomers"]) + rand(Uniform(0.0, dx0[2]), pargs["num-monomers"]))
     elseif length(x0) == 2*pargs["num-monomers"]
-        x0[1:2:end], x0[2:2:end]
+        (x0[1:2:end] + rand(Uniform(0.0, dx0[1]), pargs["num-monomers"]), 
+         x0[2:2:end] + rand(Uniform(0.0, dx0[2]), pargs["num-monomers"]))
     else
         error("Invalid input for 'x0', $(pargs["x0"])")
     end
