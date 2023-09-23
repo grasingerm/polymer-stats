@@ -43,6 +43,7 @@ else
 end
 
 for infile in readdir(pattern, indir)
+  println("    processing $infile ... ")
   writedlm(outfile, 
            hcat(
                 transpose(map(pair -> eval(Meta.parse(split(pair, "-"; limit=2)[2]))*1e-3,

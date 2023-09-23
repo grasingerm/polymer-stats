@@ -59,7 +59,7 @@ else
 end
 
 function EAPChain(pargs::Dict)
-  @show ϕs, θs = if isnothing(pargs["x0"])
+  ϕs, θs = if isnothing(pargs["x0"])
     rand(ϕ_dist, pargs["num-monomers"]), rand(θ_dist, pargs["num-monomers"]);
   else
     x0 = eval(Meta.parse(pargs["x0"]))
