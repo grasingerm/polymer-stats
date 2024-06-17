@@ -118,6 +118,10 @@ s = ArgParseSettings();
   "--profile", "-Z"
     help = "profile the program"
     action = :store_true
+  "--burn-in"
+    help = "steps for burn-in; i.e. steps before averaging"
+    arg_type = Int
+    default = 50000
 end
 
 pargs = parse_args(s);
@@ -133,6 +137,11 @@ else
 end
 
 function mcmc(nsteps::Int, pargs)
+  chain = EAPChain(pargs);
+  return mcmc(nsteps, pargs, chain);
+end
+
+function mcmc(nsteps::Int, pargs, chain::EAPChain)  
   ϕstep = pargs["phi-step"];
   dϕ_dist = Uniform(-ϕstep, ϕstep);
   chain = EAPChain(pargs);
@@ -293,22 +302,23 @@ function mcmc(nsteps::Int, pargs)
   close(outfile);
   close(rollfile);
 
-  return (scalar_averagers, vector_averagers, AR);
+  return (chain, scalar_averagers, vector_averagers, AR);
 end
 
-#=
-(sas, vas, ar) = if pargs["profile"]
+(chain, sas, vas, ar) = if pargs["profile"]
   @info "Profiling the mcmc code...";
   mcmc(5, pargs); # run first to compile code
-  @profview mcmc(pargs["num-steps"], pargs);
+  #@profview mcmc(pargs["num-steps"], pargs);
+  error("Not currently implemented...");
+  #=
   println("Press ENTER to continue...");
   readline(stdin);
   exit(1);
+  =#
 else
-  mcmc(pargs["num-steps"], pargs);
+  burned_in_chain = mcmc(pargs["burn-in"], pargs)[1];
+  mcmc(pargs["num-steps"], pargs, burned_in_chain);
 end
-=#
-(sas, vas, ar) = mcmc(pargs["num-steps"], pargs);
 
 println("<r>    =   $(get_avg(vas[1]))");
 println("<r/nb> =   $(get_avg(vas[1]) / (pargs["mlen"]*pargs["num-monomers"]))");
