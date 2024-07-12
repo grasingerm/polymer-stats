@@ -1,12 +1,13 @@
 using Glob;
 
 if length(ARGS) < 4
-    println("usage: julia aggregate_by.jl <outdir> <indir> <param> <dielectric|polar> [<3D|2D>] [runflag]");
+    println("usage: julia aggregate_by.jl <outdir> <indir> <param> <dielectric|polar> [<3D|2D>] [kappaflag] [runflag]");
   exit(1);
 end
 
-dims = (length(ARGS) == 5) ? ARGS[5] : "3D";
-runflag = (length(ARGS) == 6) ? parse(Bool, ARGS[6]) : false;
+dims = (length(ARGS) >= 5) ? ARGS[5] : "3D";
+kappaflag = (length(ARGS) >= 6) ? parse(Bool, ARGS[6]) : false;
+runflag = (length(ARGS) == 7) ? parse(Bool, ARGS[7]) : false;
 
 outdir = ARGS[1];
 indir = ARGS[2];
@@ -38,7 +39,7 @@ for datafile in datafiles
   @show pattern = (runflag) ? pattern[1:end-5] * "*" * pattern[end-3:end] : pattern
   @show value = datafile[value_start_index:value_end_index-1];
   @show outfile = joinpath(outdir, join(filtered_params, "_")*".csv");
-  @show command = `julia scripts/aggregate_mcmc.jl $outfile $indir "$pattern" $chain_type $dims`;
+  @show command = `/home/grasingerm/julia-1.6.7/bin/julia scripts/aggregate_mcmc.jl $outfile $indir "$pattern" $chain_type $dims $kappaflag $runflag`;
   @show process_output = readlines(command);
 end
 
