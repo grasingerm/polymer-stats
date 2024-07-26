@@ -53,7 +53,7 @@ end
 output_headers = if dims == 3
     ["r1" "r2" "r3" "lambda1" "lambda2" "lambda3" "r1sq" "r2sq" "r3sq" "rsquared" "p1" "p2" "p3" "p1sq" "p2sq" "p3sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"]
 else
-    ["r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "Ealign" "psi" "AR"]
+    ["r1" "r2" "lambda1" "lambda2" "r1sq" "r2sq" "rsquared" "p1" "p2" "p1sq" "p2sq" "psquared" "U" "Usquared" "AR"]
 end
 
 writedlm(outfile, hcat(input_headers, output_headers), ',');
