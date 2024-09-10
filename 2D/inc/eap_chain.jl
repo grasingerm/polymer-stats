@@ -1,6 +1,5 @@
 using Distributions;
 using NLsolve;
-using ForwardDiff;
 
 include(joinpath(@__DIR__, "dipole_response.jl"));
 
