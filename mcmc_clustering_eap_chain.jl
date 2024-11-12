@@ -135,6 +135,10 @@ s = ArgParseSettings();
     help = "steps for burn-in; i.e. steps before averaging"
     arg_type = Int
     default = 50000
+  "--burn-schedule"
+    help = "temperature schedule for burn-in"
+    arg_type = String
+    default = "[1000; 100; 10; 2; 1]"
   "--x0"
     help = "initial configuration"
     arg_type = String
@@ -357,7 +361,19 @@ end
   exit(1);
   =#
 else
-  burned_in_chain = mcmc(pargs["burn-in"], pargs)[1];
+  kT_multipliers = eval(Meta.parse(pargs["burn-schedule"]));
+  kT_base = pargs["kT"];
+  burnargs = copy(pargs);
+  burnargs["kT"] = kT_base * kT_multipliers[1];
+  burned_in_chain = mcmc(pargs["burn-in"], burnargs)[1];
+  if length(kT_multipliers) > 1
+      for kT_mult in kT_multipliers[2:end]
+          global burned_in_chain
+          local burnargs = copy(pargs);
+          burnargs["kT"] = kT_base * kT_mult;
+          burned_in_chain = mcmc(pargs["burn-in"], burnargs, burned_in_chain)[1];
+      end
+  end
   mcmc(pargs["num-steps"], pargs, burned_in_chain);
 end
 

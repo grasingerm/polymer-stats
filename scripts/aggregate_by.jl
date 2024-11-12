@@ -39,7 +39,7 @@ for datafile in datafiles
   @show pattern = (runflag) ? pattern[1:end-5] * "*" * pattern[end-3:end] : pattern
   @show value = datafile[value_start_index:value_end_index-1];
   @show outfile = joinpath(outdir, join(filtered_params, "_")*".csv");
-  @show command = `/home/grasingerm/julia-1.6.7/bin/julia scripts/aggregate_mcmc.jl $outfile $indir "$pattern" $chain_type $dims $kappaflag $runflag`;
+  @show command = `julia scripts/aggregate_mcmc.jl $outfile $indir "$pattern" $chain_type $dims $kappaflag $runflag`;
   @show process_output = readlines(command);
 end
 

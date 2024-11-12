@@ -11,6 +11,7 @@ import Pkg;
                   "Optim";
                   "NLopt";
                   "Cubature";
+                  "Glob"
                  ]);
 
 foreach(Pkg.add, depends);

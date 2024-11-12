@@ -61,7 +61,7 @@ function update_xs!(chain::EAPChain)
 end
 =#
 
-@inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[1];
+@inline u(E0::Real, μ::FdVector) = -1/2*E0*μ[2];
 
 function EAPChain(pargs::Dict)
   ϕs = rand(ϕ_dist, pargs["num-monomers"]);
@@ -193,8 +193,7 @@ pflip_linear(ip::Real) = (1 + ip) / 2;
 
 function cluster_flip!(chain::EAPChain, idx::Int; 
                        pflip::Function = pflip_linear,
-                       ϵflip::Real = 1.0,
-                       ηerr::Real = 1e-10
+                       ϵflip::Real = 1.0
                       )
   
   # grow the cluster to the right
@@ -236,17 +235,6 @@ function cluster_flip!(chain::EAPChain, idx::Int;
     for i in lower_idx:upper_idx
       flip_n!(chain, i);
     end
-
-    if norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) > ηerr
-      println("prev");
-      display(prev_n̂s)
-      println();
-      println("curr");
-      display(chain.n̂s[:, lower_idx:upper_idx])
-      println();
-      @show(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf))
-    end
-    @assert(norm(prev_n̂s + chain.n̂s[:, lower_idx:upper_idx], Inf) < ηerr);
 
     new_upper_p = if upper_idx < n(chain)
       pflip_linear(dot(n̂j(chain, upper_idx), n̂j(chain, upper_idx+1)));
