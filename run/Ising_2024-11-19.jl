@@ -24,15 +24,15 @@ E0s = [0.1; 1.0; 10.0];
 ns = Int[25; 100];
 bs = [1.0];
 kTs = [0.1; 1.0];
-Fzs = [0.0; 0.1; 0.2; 0.3; 0.4; 0.5; 1.0; 2.0; 3.0; 4.0; 5.0; 7.5; 10.0; 12.5; 15.0; 20.0; 25.0; 30.0; 
+Fxs = [0.0; 0.1; 0.2; 0.3; 0.4; 0.5; 1.0; 2.0; 3.0; 4.0; 5.0; 7.5; 10.0; 12.5; 15.0; 20.0; 25.0; 30.0; 
        35.0; 40.0; 45.0; 50.0];
-Fxs = [0.0];
+Fzs = [0.0];
 runs = 1:10
 for b in bs, κ in κs, n in ns, Kvec in Ks, E0 in E0s, kT in kTs, Fx in Fxs, Fz in Fzs, run in runs
   K1, K2 = Kvec;
   push!(cases, Dict(:E0 => E0, :K1 => K1, :K2 => K2,
-                    :kT => kT, :Fz => Fz, :kappa => κ,
-                    :Fx => Fx, :n => n, :b => b, :run => run));
+                    :kT => kT, :Fz => Fx / sqrt(2), :kappa => κ,
+                    :Fx => Fx / sqrt(2), :n => n, :b => b, :run => run));
 end
 
 @info "total number of cases to run: $(length(cases))";
