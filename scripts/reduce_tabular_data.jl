@@ -34,10 +34,14 @@ for infile in readdir(glob"*.csv", indir)
   for rowidx in 1:size(raw_data, 1)
     @show k = raw_data[rowidx, 1:nparams]
     @show [raw_data[rowidx, nparams+1:end], 1]
-    if haskey(pooled_data, k)
-        pooled_data[k] += [raw_data[rowidx, nparams+1:end], 1]
-    else
-        pooled_data[k] = [raw_data[rowidx, nparams+1:end], 1]
+    try
+        if haskey(pooled_data, k)
+            pooled_data[k] += [raw_data[rowidx, nparams+1:end], 1]
+        else
+            pooled_data[k] = [raw_data[rowidx, nparams+1:end], 1]
+        end
+    catch e
+        @show e
     end
   end
   reduced_data = Any[headers]

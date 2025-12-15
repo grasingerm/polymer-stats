@@ -11,7 +11,13 @@ runflag = (length(ARGS) == 7) ? parse(Bool, ARGS[7]) : false;
 
 outdir = ARGS[1];
 indir = ARGS[2];
-param = ARGS[3];
+FxFzFlag = false;
+param = if ARGS[3] == "FxFz"
+    FxFzFlag = true;
+    "Fz"
+else
+    param
+end
 chain_type = ARGS[4];
 
 mkpath(outdir);
@@ -36,6 +42,9 @@ for datafile in datafiles
   @show strspan2 = findnext("_", datafile, value_start_index);
   value_end_index = (strspan2 != nothing) ? strspan2[1] : length(datafile)-3;
   pattern = string(datafile[1:value_start_index-1], "*", datafile[value_end_index:end])
+  if FxFzFlag
+      pattern *= pattern
+  end
   @show pattern = (runflag) ? pattern[1:end-5] * "*" * pattern[end-3:end] : pattern
   @show value = datafile[value_start_index:value_end_index-1];
   @show outfile = joinpath(outdir, join(filtered_params, "_")*".csv");
