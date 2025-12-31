@@ -58,7 +58,7 @@ else
 end
 
 function EAPChain(pargs::Dict)
-  ϕs, θs = if isnothing(pargs["x0"])
+  ϕs, θs = if !haskey(pargs, "x0") || isnothing(pargs["x0"])
     rand(ϕ_dist, pargs["num-monomers"]), rand(θ_dist, pargs["num-monomers"]);
   else
     x0 = eval(Meta.parse(pargs["x0"]))
@@ -88,8 +88,8 @@ function EAPChain(pargs::Dict)
 
   ret =  EAPChain(
                   pargs["mlen"],
-                  pargs["bend-mod"],
-                  pargs["bend-angle"],
+                  haskey(pargs, "bend-mod") ? pargs["bend-mod"] : 0,
+                  haskey(pargs, "bend-angle") ? pargs["bend-angle"] : 0,
                   pargs["E0"],
                   dr,
                   if pargs["energy-type"] == "noninteracting"

@@ -11,6 +11,8 @@ end
 indir = ARGS[1];
 outdir = ARGS[2];
 
+mkpath(outdir)
+
 nparams = if ARGS[3] == "dielectric"
   length(["E0" "K1" "K2" "kT" "Fz" "Fx" "n" "b"]);
 elseif ARGS[3] == "polar"
@@ -33,12 +35,12 @@ for infile in readdir(glob"*.csv", indir)
   @show headers
   for rowidx in 1:size(raw_data, 1)
     @show k = raw_data[rowidx, 1:nparams]
-    @show [raw_data[rowidx, nparams+1:end], 1]
+    @show row_data = [filter(x -> x != "", raw_data[rowidx, (nparams+1):end]), 1]
     try
         if haskey(pooled_data, k)
-            pooled_data[k] += [raw_data[rowidx, nparams+1:end], 1]
+            pooled_data[k] += row_data
         else
-            pooled_data[k] = [raw_data[rowidx, nparams+1:end], 1]
+            pooled_data[k] = row_data
         end
     catch e
         @show e
@@ -47,7 +49,9 @@ for infile in readdir(glob"*.csv", indir)
   reduced_data = Any[headers]
   for k in sort(collect(keys(pooled_data)))
       v = pooled_data[k]
+      @show k, v[1], v[2]
       @show transpose(k), transpose(v[1]), v[2]
+      @show size(transpose(k)), size(transpose(v[1] / v[2]))
       push!(reduced_data, hcat(transpose(k), transpose(v[1] / v[2])))
   end
   reduced_data = vcat(reduced_data...)

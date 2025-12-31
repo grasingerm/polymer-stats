@@ -169,16 +169,17 @@ function mcmc(nsteps::Int, pargs)
 end
 
 function mcmc(nsteps::Int, pargs, chain::EAPChain)
+  chain.kT = pargs["kT"];
   ϕstep, θstep = pargs["phi-step"], pargs["theta-step"];
   dϕ_dist = Uniform(-ϕstep, ϕstep);
   dθ_dist = Uniform(-θstep, θstep);
   chain.U = U(chain);
   wf = AntiDipoleWeightFunction(chain);
-  acceptor = Metropolis(
+  @show acceptor = Metropolis(
                chain, 
                (pargs["umbrella-sampling"]) ? wf : WeightlessFunction()
               );
-  numeric_type = if pargs["numeric-type"] == "float64"
+  @show numeric_type = if pargs["numeric-type"] == "float64"
     Float64;
   elseif pargs["numeric-type"] == "float128"
     Float128;
@@ -361,19 +362,27 @@ end
   exit(1);
   =#
 else
-  kT_multipliers = eval(Meta.parse(pargs["burn-schedule"]));
-  kT_base = pargs["kT"];
-  burnargs = copy(pargs);
-  burnargs["kT"] = kT_base * kT_multipliers[1];
-  burned_in_chain = mcmc(pargs["burn-in"], burnargs)[1];
+  @show kT_multipliers = eval(Meta.parse(pargs["burn-schedule"]));
+  burned_in_chain = if length(kT_multipliers) > 0
+      @show kT_base = pargs["kT"];
+      @show burnargs = copy(pargs);
+      @show burnargs["kT"] = kT_base * kT_multipliers[1];
+      mcmc(pargs["burn-in"], burnargs)[1];
+  else
+      mcmc(0, pargs)[1];
+  end
+
   if length(kT_multipliers) > 1
       for kT_mult in kT_multipliers[2:end]
           global burned_in_chain
           local burnargs = copy(pargs);
           burnargs["kT"] = kT_base * kT_mult;
+          burned_in_chain.kT = burnargs["kT"];
           burned_in_chain = mcmc(pargs["burn-in"], burnargs, burned_in_chain)[1];
       end
   end
+
+  burned_in_chain.kT = pargs["kT"];
   mcmc(pargs["num-steps"], pargs, burned_in_chain);
 end
 

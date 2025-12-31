@@ -16,7 +16,7 @@ param = if ARGS[3] == "FxFz"
     FxFzFlag = true;
     "Fz"
 else
-    param
+    ARGS[3]
 end
 chain_type = ARGS[4];
 
