@@ -22,9 +22,9 @@ E0s = [0.0; 1.0; 2.0; 3.0; 5.0];
 K1s = [1.0]; 
 K2s = [0.0]; 
 kTs = [1.0];
-Fzs = vcat(0.0:0.05:1.0, 1.5:0.5:5.0);
-Fxs = [0.0];
-ns = Int[25];
+Fxs = vcat(0.0:0.05:1.0, 1.5:0.5:5.0);
+Fzs = [0.0];
+ns = Int[100];
 #bs = [0.5; 1.0; 2.0];
 bs = [1.0];
 for b in bs, n in ns, Fx in Fxs, Fz in Fzs, kT in kTs, E0 in E0s, K1 in K1s, K2 in K2s, κ in κs, run in 1:runs

@@ -27,7 +27,7 @@ Fxs = [0.0];
 ns = Int[100];
 #bs = [0.5; 1.0; 2.0];
 bs = [1.0];
-for b in bs, n in ns, Fx in Fxs, Fz in Fzs, kT in kTs, E0 in E0s, K1 in K1s, K2 in K2s, κ in κs, run in runs
+for b in bs, n in ns, Fx in Fxs, Fz in Fzs, kT in kTs, E0 in E0s, K1 in K1s, K2 in K2s, κ in κs, run in 1:runs
   push!(cases, Dict(:E0 => E0, :K1 => K1, :K2 => K2,
                     :kT => kT, :Fz => Fz, :kappa => κ,
                     :Fx => Fx, :n => n, :b => b, :run => run));
