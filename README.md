@@ -37,7 +37,7 @@ Documentation of this work is still in progress. However, I am very receptive to
 
 ## Citations
 There are a few papers associated with polymer-stats. 
-If you found this code useful for your research, please be kind enough to cite it, using the DOIs 10.1039/D0SM00845A, 10.1073/pnas.2102477 and 10.1016/j.jmps.2021.104658, or the following BiBTeX entries:
+If you found this code useful for your research and you would like to cite it, you can use the DOIs 10.1039/D0SM00845A, 10.1073/pnas.2102477 and 10.1016/j.jmps.2021.104658, or the following BiBTeX entries:
 
 
     @article{grasinger2020statistical,
