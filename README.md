@@ -33,7 +33,7 @@ It has been verified against analytical results, so I am relatively confident in
 The expectation is that the clustering algorithm will vastly improve the convergence rate for dielectric chains with monomer-monomer interactions, but this has not been studied yet.
 
 ## Questions
-Documentation of this work is still in progress. However, I am very receptive to questions and comments via email. You can email questions to grasingerm@gmail.com.
+~~Documentation of this work is still in progress.~~ I'll probably never write proper documentation for this, however, I am very receptive to questions and comments via email. You can email questions to grasingerm@gmail.com.
 
 ## Citations
 There are a few papers associated with polymer-stats. 
